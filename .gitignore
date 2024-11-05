@@ -1,4 +1,4 @@
 # Ignore compiled binaries (common names)
 *.out
-*.a
+*.o
 *.exe
