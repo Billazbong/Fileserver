@@ -49,7 +49,7 @@ void init(Server* server, int port) {
     server->server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (server->server_fd < 0) err(Could not initialize the server socket, 4);
-        server->max_fd = server->server_fd;
+    server->max_fd = server->server_fd;
 }
 
 
