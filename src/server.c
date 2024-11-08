@@ -22,7 +22,7 @@
 */
 void setup_storage_dir() {
     struct stat st = {0};
-    if (stat(STORAGE_DIR, &st)) {
+    if (stat(STORAGE_DIR, &st)!=ERR) {
         printf("Storage directory already exists at : %s\n",STORAGE_DIR);
         return;
     }
@@ -46,10 +46,41 @@ void init(Server* server, int port) {
     setup_storage_dir();
 
     memset(server, 0, sizeof(Server));
-    server->server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
+
+    printf("Setting up the socket...\n");
+    server->server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server->server_fd < 0) err(Could not initialize the server socket, 4);
-    server->max_fd = server->server_fd;
+    printf("Server socket successfully created \n");
+
+    printf("Setting up the epoll instance...\n");
+    server->epoll_fd=epoll_create1(0);
+    if (server->epoll_fd == -1) err(Failed to create epoll instance, 6);
+    printf("Epoll instance successfully created\n");
+
+    printf("Adding server socket to epoll instance...\n");
+    server->ev.events=EPOLLIN;
+    server->ev.data.fd=server->server_fd;
+    if (epoll_ctl(server->epoll_fd,EPOLL_CTL_ADD,server->server_fd,&server->ev)) err(Could not add the socket to the epoll instance,9);
+    printf("Server socket successfully added to epoll instance\n");
+
+    printf("Setting up server address...\n");
+    server->serv_addr.sin_family=AF_INET;
+    server->serv_addr.sin_addr.s_addr=INADDR_ANY;
+    server->serv_addr.sin_port=htons(port);
+    printf("Server address successfully set up\n");
+
+
+    printf("Binding the socket and the address...\n");
+    int res;
+    res=bind(server->server_fd, (struct sockaddr_in *) &server->serv_addr, sizeof(server->serv_addr));
+    if (res==ERR) err(Could not bind the socket to the local address,7);
+    printf("Binding successful\n");
+
+    printf("Starting to listen...\n");
+    res=listen(server->server_fd,MAX_CLIENT);
+    if (res==ERR) err(Could not set the socket to listen,8);
+    printf("Listening...\n");
 }
 
 
