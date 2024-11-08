@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <netinet/in.h>
+#include "buffer.h"
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -19,8 +20,10 @@
 typedef struct 
 {
     int server_fd;                            ///< File descriptor for the server socket.
-    struct epoll_event ev;
+    struct epoll_event ev;                    ///< Epoll event to bind the sockets to the epoll instance
     struct epoll_event events[MAX_CLIENT];    ///< Array to hold events from epoll_wait()
+    int nfds;                                 ///< Used to store the number of events triggered by epoll_wait()
     int epoll_fd;                             ///< File descriptor for the epoll instance
     struct sockaddr_in serv_addr;             ///< Server's address information (IP address and port).
+    Buffer buff;
 } Server;

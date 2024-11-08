@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
+
 #include "../include/server.h"
 
 /**
@@ -42,6 +43,9 @@ void setup_storage_dir() {
    * @param port The port number the server will listen on. 
 */
 void init(Server* server, int port) {
+
+    init_with_capacity(&server->buff,MAX_LEN);
+    
     printf("Setting up the storage directory...\n");
     setup_storage_dir();
 
@@ -83,6 +87,36 @@ void init(Server* server, int port) {
     printf("Listening...\n");
 }
 
+int event_loop(Server* server){
+    for(;;){
+        server->nfds = epoll_wait(server->epoll_fd, server->events, MAX_CLIENT, -1);
+        if (server->nfds == ERR) err(Could not retrieve any events,10);
+
+         for (int i=0;i<server->nfds;i++){
+            if (server->events[i].data.fd==server->server_fd){  // New client to add
+                int client_fd = accept(server->server_fd,0,0);
+                if (client_fd==ERR) err(Could not accept the client,11);
+                server->ev.events=EPOLLIN;
+                server->ev.data.fd=client_fd;
+                if (epoll_ctl(server->epoll_fd,EPOLL_CTL_ADD,client_fd,&server->ev)==ERR) {
+                    perror("Could not bind the client socket to the epoll instance");
+                    close(client_fd);
+                }
+            }
+            else { // Handle the data
+                int res=read(server->events[i].data.fd,server->buff.buffer,MAX_LEN);
+                if(res==ERR) {
+                    close(server->events[i].data.fd);
+                    epoll_ctl(server->epoll_fd,EPOLL_CTL_DEL,server->events[i].data.fd,NULL);
+                }
+                else {
+                    write(server->events[i].data.fd, server->buff.buffer, res);
+                }
+            }
+         }
+    }
+}
+
 
 int main(int argc, char** argv ){
     if (argc != 2) err(Wrong number of argument, 2); //todo : Montrer l'utilisation correcte du programme ( Usage : argv[0] <argument> .. )
@@ -92,6 +126,7 @@ int main(int argc, char** argv ){
     printf("Initializing server...\n");
     Server server;
     init(&server, port);
-
+    printf("Server initialized\n");
+    event_loop(&server);
     return 1337;
 }
