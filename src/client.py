@@ -48,7 +48,11 @@ def main():
     connect_socket(client_socket,host,port)
     print("Type 'help' for assistance")
     while(True):
-        message=input(f"{os.getcwd()}>")
-        handle_command(message)
+        try:
+            message=input(f"{os.getcwd()}>")
+            handle_command(message)
+        except KeyboardInterrupt:
+            print("Goodbye")
+            sys.exit(0)
 
 main()
