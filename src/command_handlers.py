@@ -1,26 +1,25 @@
 import os
 
-
-#Dictionary to store commands (mostly used for 'help')
+# Dictionary to store commands (mostly used for 'help')
 commands = {
-    'help' : 'Display the list of all commmands or provides more detail on a specific command.\nUsage : help [<command>]',
-    'cd' : 'Access the given directory in the current directory of the fileserver.\nUsage : cd <directory>',
-    'list' : 'List all the files in the current directory of the fileserver.\nUsage : list',
-    'mkdir' : 'Create a new directory in the current directory of the fileserver.\nUsage : mkdir <name>',
-    'pwd' : 'Return the name of the current directory of the fileserver.\nUsage : pwd',
-    'download' : 'Transfer a file/directory from the current directory of the fileserver to the current directory of the client.\nUsage : download <filename>/<directory>',
-    'upload' : 'Transfer a file/directory from the current directory of the client to the current directory of the fileserver.\nUsage : upload <filename>/<directory>',
-    'lcd' : 'Access the given directory in the current directory of the client.\nUsage : lcd <directory',
-    'llist' : 'List all the files in the current directory of the client.\nUsage : llist',
-    'lmkdir' : 'Create a new directory in the current directory of the client.\nUsage : lmkdir <name>',
-    'lpwd' : 'return the name of the current directory of the client.\nUsage : lpwd'
+    'help' : 'Displays the list of all commmands or provides more detail on a specific command.\nUsage : help [<command>]',
+    'list' : 'Lists all the files in the current directory of the fileserver.\nUsage : list',
+    'llist' : 'Lists all the files in the current directory of the client.\nUsage : llist',
+    'pwd' : 'Returns the name of the current directory of the fileserver.\nUsage : pwd',
+    'lpwd' : 'Returns the name of the current directory of the client.\nUsage : lpwd',
+    'cd' : 'Accesses the given directory in the current directory of the fileserver.\nUsage : cd <directory>',
+    'lcd' : 'Accesses the given directory in the current directory of the client.\nUsage : lcd <directory',
+    'mkdir' : 'Creates a new directory in the current directory of the fileserver.\nUsage : mkdir <name>',
+    'lmkdir' : 'Creates a new directory in the current directory of the client.\nUsage : lmkdir <name>',
+    'download' : 'Transfers a file/directory from the current directory of the fileserver to the current directory of the client.\nUsage : download <filename>/<directory>',
+    'upload' : 'Transfers a file/directory from the current directory of the client to the current directory of the fileserver.\nUsage : upload <filename>/<directory>',
 }
 
 def send_receive_data():
     return
 
 def handle_help(parts):
-    """Display informations about commands"""
+    """Displays informations about commands"""
     if len(parts)>2:
         command=parts[0].lower()
         print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
