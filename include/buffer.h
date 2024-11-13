@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#define MAX_LEN 1024
+#define MAX_LEN 1024*512
 typedef struct {
     char buffer[MAX_LEN];
     size_t len;
