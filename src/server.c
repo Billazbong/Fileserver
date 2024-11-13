@@ -82,7 +82,7 @@ int event_loop(Server* server){
                 printf("[!] New client connected\n");
             }
             else { // Handle the data
-                int res=read(server->events[i].data.fd,server-> .buffer,MAX_LEN);
+                int res=read(server->events[i].data.fd,server->buff.buffer,MAX_LEN);
                 if(res==ERR) {
                     close(server->events[i].data.fd);
                     epoll_ctl(server->epoll_fd,EPOLL_CTL_DEL,server->events[i].data.fd,NULL);
@@ -97,8 +97,7 @@ int event_loop(Server* server){
 
 
 int main(int argc, char** argv ){
-    if (argc != 2)
-        printf("[-] Usage : %s <port>",argv[0]), exit(2)
+    if (argc != 2) printf("[-] Usage : %s <port>",argv[0]), exit(2);
 
     int port;
     if ((port = atoi(argv[1])) == 0) err(Port have to be a number or different from 0, 3);
