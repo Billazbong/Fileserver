@@ -3,3 +3,4 @@
 *.o
 *.exe
 server
+__pycache__/
