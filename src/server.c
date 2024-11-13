@@ -77,7 +77,7 @@ void init(Server* server, int port) {
 
     printf("Binding the socket and the address...\n");
     int res;
-    res=bind(server->server_fd, (struct sockaddr_in *) &server->serv_addr, sizeof(server->serv_addr));
+    res=bind(server->server_fd, (struct sockaddr*) &server->serv_addr, sizeof(server->serv_addr));
     if (res==ERR) err(Could not bind the socket to the local address,7);
     printf("Binding successful\n");
 
@@ -102,6 +102,7 @@ int event_loop(Server* server){
                     perror("Could not bind the client socket to the epoll instance");
                     close(client_fd);
                 }
+                printf("New client connected\n");
             }
             else { // Handle the data
                 int res=read(server->events[i].data.fd,server->buff.buffer,MAX_LEN);
