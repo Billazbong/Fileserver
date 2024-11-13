@@ -85,7 +85,6 @@ def handle_upload(parts):
     if not os.path.exists(path):
         print(f"Path {path} does not exists.")
         return
-    
     send_receive_data(parts)
 
 
@@ -124,6 +123,16 @@ def handle_lmkdir(parts):
         command=parts[0].lower()
         print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
         return
+    path=parts[1].lower()
+    if os.path.exists(path):
+        print(f"{path} already exists")
+        return
+
+    try:
+        os.mkdir(path)
+        return
+    except FileNotFoundError:
+        print(f"{path} is incorrect")
     
 
 def handle_lpwd(parts):
@@ -131,6 +140,8 @@ def handle_lpwd(parts):
         command=parts[0].lower()
         print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
         return
+    
+    print(os.getcwd())
     
 
 
