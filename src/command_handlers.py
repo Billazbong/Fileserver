@@ -15,86 +15,68 @@ commands = {
     'upload' : 'Transfers a file/directory from the current directory of the client to the current directory of the fileserver.\nUsage : upload <filename>/<directory>',
 }
 
-def send_receive_data():
-    return
+def hit_server(socket, tokens):
+    socket.sendall(" ".join(tokens))
 
-def handle_help(parts):
+def handle_help(tokens):
     """Displays informations about commands"""
-    if len(parts)>2:
-        command=parts[0].lower()
+    if len(tokens) > 2:
+        command=tokens[0].lower()
         print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
         return
-    if len(parts)==1 :
+    if len(tokens) == 1:
         print("All available commands :")
-        for cmd in commands :
+        for cmd in commands:
             print(f"- {cmd}")
-    else :
-        command_to_desc=parts[1].lower()
+    else:
+        command_to_desc=tokens[1].lower()
         description=commands.get(command_to_desc)
         if description:
             print(f"Command '{command_to_desc}' : {description}")
-        else :
+        else:
             print(f"Command '{command_to_desc}' not found")
 
 
 
-def handle_cd(parts):
-    if len(parts)!=2:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
-        return
-    send_receive_data(parts)
+def handle_cd(tokens):
+    if check_command_validity(tokens,2):
+        hit_server(tokens)
 
-    
+def handle_list(tokens):
+    if check_command_validity(tokens,1):
+        hit_server(tokens)
 
-def handle_list(parts):
-    if len(parts)!=1:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
-        return
-    send_receive_data(parts)
+def handle_mkdir(tokens):
+    if check_command_validity(tokens,2):
+        hit_server(tokens)
 
-def handle_mkdir(parts):
-    if len(parts)!=2:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
-        return
-    send_receive_data(parts)
+def handle_pwd(tokens):
+    if check_command_validity(tokens,1):
+        hit_server(tokens)
 
-def handle_pwd(parts):
-    if len(parts)!=1:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
-        return
-    send_receive_data(parts)
+def handle_download(tokens):
+    if check_command_validity(tokens,2):
+        hit_server(tokens)
 
-def handle_download(parts):
-    if len(parts)!=2:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
-        return
-    send_receive_data(parts)
-
-def handle_upload(parts):
-    if len(parts)!=2:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
-        return
-    path=parts[1]
+def handle_upload(tokens):
+    if check_command_validity(tokens,2):
+        path=tokens[1]
     if not os.path.exists(path):
         print(f"Path {path} does not exists.")
         return
-    send_receive_data(parts)
+    hit_server(tokens)
 
+def check_command_validity(tokens:str, expected_length:int) -> bool:
+    if len(str) is not expected_length:
+        command=tokens[0].lower()
+        print(f"Wrong number of argument.\n{command} : {commands.get(command).split("\n")[1]}")
+        return False
+    return True
 
-
-
-def handle_lcd(parts):
-    if len(parts)!=2:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
+def handle_lcd(tokens):
+    if not check_command_validity(tokens,2):
         return
-    path=parts[1]
+    path=tokens[1]
     if not os.path.isdir(path):
         print(f"Path {path} does not exists.")
         return
@@ -105,46 +87,32 @@ def handle_lcd(parts):
     except Exception as e:
         print(f"Error acceding the directory : {e}")
 
-def handle_llist(parts):
-    if len(parts)!=1:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
+def handle_llist(tokens):
+    if not check_command_validity(tokens,1):
         return
     list=os.listdir()
-    
     for file in list:
         print(file)
-    
-    
 
-def handle_lmkdir(parts):
-    if len(parts)!=2:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
+def handle_lmkdir(tokens):
+    if not check_command_validity(tokens,2):
         return
-    path=parts[1].lower()
+    path=tokens[1].lower()
     if os.path.exists(path):
         print(f"{path} already exists")
         return
-
     try:
         os.mkdir(path)
-        return
     except FileNotFoundError:
         print(f"{path} is incorrect")
-    
 
-def handle_lpwd(parts):
-    if len(parts)!=1:
-        command=parts[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
+def handle_lpwd(tokens):
+    if not check_command_validity(tokens,1):
         return
-    
     print(os.getcwd())
     
+# Dictionary to store the handler of the commands  
 
-
-#Dictionary to store the handler of the commands  
 command_map = {
     'help' : handle_help,
     'cd' : handle_cd,

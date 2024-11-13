@@ -24,7 +24,6 @@ def connect_socket(client_socket,host,port):
         print(f"Error connecting to server: {e}")
         sys.exit(1)
 
-
 def handle_command(message):
     """Handle the command entered by the user"""
     parts=message.split()

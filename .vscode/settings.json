@@ -1,6 +1,9 @@
 {
     "files.associations": {
         "*.c": "c",
-        "server.h": "c"
+        "server.h": "c",
+        "ip_helper.h": "c",
+        "stdlib.h": "c",
+        "buffer.h": "c"
     }
 }
