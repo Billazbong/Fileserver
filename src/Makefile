@@ -1,9 +1,9 @@
 # Makefile
 CC = gcc
 CFLAGS = -Iinclude -Wall -g
-SRC = src/server.c src/ip_helper.c
+SRC = server.c ip_helper.c
 OBJ = $(SRC:.c=.o)
-TARGET = src/server
+TARGET = server
 
 all: $(TARGET)
 

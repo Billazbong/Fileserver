@@ -67,9 +67,9 @@ def handle_upload(tokens):
     hit_server(tokens)
 
 def check_command_validity(tokens:str, expected_length:int) -> bool:
-    if len(str) is not expected_length:
+    if len(tokens) is not expected_length:
         command=tokens[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command).split("\n")[1]}")
+        print(f"Wrong number of argument.\n{command} : {commands.get(command).split()[1]}")
         return False
     return True
 

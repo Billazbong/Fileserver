@@ -12,5 +12,5 @@
 
 #define MAX_SIZE 1024
 
-static char host[MAX_SIZE];
-in_addr_t get_local_ip_of_interface(const char* interface) ;
+extern char host[MAX_SIZE];
+in_addr_t get_local_ip_of_interface(const char* interface_name);

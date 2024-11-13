@@ -24,7 +24,7 @@
 #define ERR -1
 #define MAX_CLIENT 10
 #define STORAGE_DIR "/var/lib/myfileserver/"
-#define INTERFACE "eth0"
+#define INTERFACE "enp0s3" //normalement c eth0
 
 /**
  * @brief Represents a server instance and its associated data.

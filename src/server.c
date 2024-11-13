@@ -101,6 +101,7 @@ int main(int argc, char** argv ){
 
     int port;
     if ((port = atoi(argv[1])) == 0) err(Port have to be a number or different from 0, 3);
+    printf("%d\n",get_local_ip_of_interface(INTERFACE));
 
     printf("Initializing server...\n");
     Server server;
