@@ -31,12 +31,11 @@ void setup_storage_dir() {
 */
 void init(Server* server, int port) {
 
-    init_with_capacity(&server->buff,MAX_LEN);
     
     printf("Setting up the storage directory...\n");
     setup_storage_dir();
-
-    memset(server, 0, sizeof(Server));
+    server=malloc(sizeof(server));
+    init_with_capacity(&server->buff,MAX_LEN);
 
     printf("Setting up the socket...\n");
     server->server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -51,7 +50,7 @@ void init(Server* server, int port) {
 
     printf("Setting up server address...\n");
     server->serv_addr.sin_family=AF_INET;
-    server->serv_addr.sin_addr.s_addr=get_local_ip_of_interface(INTERFACE);
+    if ((server->serv_addr.sin_addr.s_addr=get_local_ip_of_interface(INTERFACE))==ERR) err(Could not get local ip of the interface,12);
     server->serv_addr.sin_port=htons(port);
 
     printf("Binding the socket and the address...\n");
@@ -101,8 +100,6 @@ int main(int argc, char** argv ){
 
     int port;
     if ((port = atoi(argv[1])) == 0) err(Port have to be a number or different from 0, 3);
-    printf("%d\n",get_local_ip_of_interface(INTERFACE));
-
     printf("Initializing server...\n");
     Server server;
     init(&server, port);

@@ -37,7 +37,6 @@ def handle_help(tokens):
             print(f"Command '{command_to_desc}' not found")
 
 
-
 def handle_cd(tokens):
     if check_command_validity(tokens,2):
         hit_server(tokens)

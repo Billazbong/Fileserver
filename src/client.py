@@ -1,6 +1,7 @@
+import os
 import socket
 import sys
-from command_handlers import *
+import command_handlers as cmd_h
 
 def create_socket():
     """Create a client socket in order to connect to the fileserver 
@@ -31,10 +32,10 @@ def handle_command(message):
         return
     command=parts[0].lower()
     
-    if command not in command_map:
+    if command not in cmd_h.command_map:
         print(f"Command '{command}' not found")
     else:
-        command_map[command](parts)
+        cmd_h.command_map[command](parts)
         
 
 def main():
@@ -52,7 +53,7 @@ def main():
             message=input(f"{os.getcwd()}>")
             handle_command(message)
         except KeyboardInterrupt:
-            print("Goodbye")
+            print("\nGoodbye")
             sys.exit(0)
 
 main()
