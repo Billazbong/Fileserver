@@ -8,7 +8,7 @@ commands = {
     'pwd' : 'Returns the name of the current directory of the fileserver.\nUsage : pwd',
     'lpwd' : 'Returns the name of the current directory of the client.\nUsage : lpwd',
     'cd' : 'Accesses the given directory in the current directory of the fileserver.\nUsage : cd <directory>',
-    'lcd' : 'Accesses the given directory in the current directory of the client.\nUsage : lcd <directory',
+    'lcd' : 'Accesses the given directory in the current directory of the client.\nUsage : lcd <directory>',
     'mkdir' : 'Creates a new directory in the current directory of the fileserver.\nUsage : mkdir <name>',
     'lmkdir' : 'Creates a new directory in the current directory of the client.\nUsage : lmkdir <name>',
     'download' : 'Transfers a file/directory from the current directory of the fileserver to the current directory of the client.\nUsage : download <filename>/<directory>',
@@ -69,7 +69,7 @@ def handle_upload(tokens):
 def check_command_validity(tokens:str, expected_length:int) -> bool:
     if len(tokens) is not expected_length:
         command=tokens[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command).split()[1]}")
+        print(f"Wrong number of argument.\n{command} : {commands.get(command).split(':')[1]}")
         return False
     return True
 
