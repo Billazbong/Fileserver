@@ -24,12 +24,14 @@
 #define MAX_CLIENT 10
 #define STORAGE_DIR "/var/lib/myfileserver/"
 #define INTERFACE "enp0s3" //normalement c eth0
+#define BROADCAST_PORT 9999
 
 /**
  * @brief Represents a server instance and its associated data.
  */
 typedef struct {
-    int server_fd;                            // File descriptor for the server socket.
+    int tcp_fd;                               // File descriptor for the tcp socket.
+    int udp_fd;                               // File descriptor for the udp socket.
     int epoll_fd;                             // File descriptor for the epoll instance
     int nfds;                                 // Used to store the number of events triggered by epoll_wait()
     struct epoll_event ev;                    // Epoll event to bind the sockets to the epoll instance
