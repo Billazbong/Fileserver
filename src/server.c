@@ -93,7 +93,6 @@ void init(Server* server, int port) {
  * When received, it responds with the server's IP address and port.
  */
 void handle_broadcast_discovery(Server* server) {
-    printf("coucou\n");
     char buffer[MAX_LEN];
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
@@ -109,7 +108,7 @@ void handle_broadcast_discovery(Server* server) {
     printf("Received broadcast message: %s\n", buffer);
 
     // Respond to the discovery request with the server's address
-    char response[MAX_LEN];
+    char response[1024];
     snprintf(response, sizeof(response), "%s:%d", inet_ntoa(server->serv_addr.sin_addr), ntohs(server->serv_addr.sin_port));
 
     if (sendto(server->udp_fd, response, strlen(response), 0, (struct sockaddr*)&client_addr, addr_len) < 0) {
@@ -121,9 +120,9 @@ void handle_broadcast_discovery(Server* server) {
 
 int event_loop(Server* server){
     for(;;){
+        handle_broadcast_discovery(server);
         server->nfds = epoll_wait(server->epoll_fd, server->events, MAX_CLIENT, -1);
         if (server->nfds == ERR) err(Could not retrieve any events,10);
-        handle_broadcast_discovery(server);
          for (int i=0;i<server->nfds;i++){
             if (server->events[i].data.fd==server->tcp_fd){  //* Case when new client to add
                 int client_fd = accept(server->tcp_fd,0,0);

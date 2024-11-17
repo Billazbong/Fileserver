@@ -45,8 +45,8 @@ def discover_servers(broadcast_port):
 
     message = "DISCOVER_SERVER"
     client_socket.sendto(message.encode(), ('<broadcast>', broadcast_port))
-
     servers = []
+    
     try:
         while True:
             response, addr = client_socket.recvfrom(1024)
