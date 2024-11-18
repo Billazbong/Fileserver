@@ -4,7 +4,6 @@
 #define MAX_CLIENT 10
 #define MAX_LEN 1024
 #define STORAGE_DIR "/var/lib/myfileserver/"
-#define INTERFACE "en0" // Normally it's eth0
 #define BROADCAST_PORT 9999
 
 #define TOKEN_SIZE 1024

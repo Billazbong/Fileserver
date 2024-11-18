@@ -4,3 +4,5 @@
 *.exe
 server
 __pycache__/
+obj/
+bin/

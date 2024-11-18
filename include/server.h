@@ -21,8 +21,6 @@
 #define TOSTRING(x) STRINGIFY(x)
 #define err(s, n) { perror("[-] In file "__FILE__" at line "TOSTRING(__LINE__)": " #s); exit(n); }
 
-
-
 /**
  * @brief Represents a server instance and its associated data.
  */
@@ -36,7 +34,7 @@ typedef struct {
 
 // Function prototypes
 void setup_storage_dir();
-void init(Server* server, int port);
+void init(Server* server, int port, const char * interface);
 void start_event_loop(Server* server);
 void on_accept(evutil_socket_t fd, short events, void* arg);
 void on_client_data(evutil_socket_t fd, short events, void* arg);

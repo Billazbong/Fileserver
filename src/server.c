@@ -29,7 +29,7 @@ void setup_storage_dir() {
    * @param server A pointer to the Server structure to be initialized.
    * @param port The port number the server will listen on. 
 */
-void init(Server* server, int port) {
+void init(Server* server, int port, const char* interface) {
     printf("Setting up the storage directory...\n");
     setup_storage_dir();
     init_with_capacity(&server->buff, MAX_LEN);
@@ -43,7 +43,7 @@ void init(Server* server, int port) {
 
     printf("Setting up server address...\n");
     server->serv_addr.sin_family = AF_INET;
-    if ((server->serv_addr.sin_addr.s_addr = get_local_ip_of_interface(INTERFACE)) == ERR) 
+    if ((server->serv_addr.sin_addr.s_addr = get_local_ip_of_interface(interface)) == ERR) 
         err(Could not get local ip of the interface, 12);
 
     server->serv_addr.sin_port = htons(port);
@@ -141,13 +141,13 @@ void start_event_loop(Server* server) {
 }
 
 int main(int argc, char** argv) {
-    if (argc != 2) printf("[-] Usage : %s <port>", argv[0]), exit(2);
+    if (argc != 3) printf("[-] Usage : %s <port> <interface>", argv[0]), exit(2);
 
     int port;
     if ((port = atoi(argv[1])) == 0) err(Port have to be a number or different from 0, 3);
     printf("Initializing server...\n");
     Server server;
-    init(&server, port);
+    init(&server, port,argv[2]);
     printf("[+] Server initialized !\n");
     start_event_loop(&server);
     return 1337;

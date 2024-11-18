@@ -4,11 +4,6 @@ import sys
 import command_handlers as cmd_h
 
 def create_socket():
-    """Create a client socket in order to connect to the fileserver 
-
-    Returns:
-        socket: the socket which will be used to connect to a fileserver
-    """
     try:
         client_socket=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         return client_socket
@@ -17,7 +12,6 @@ def create_socket():
         sys.exit(1)
 
 def connect_socket(client_socket,host,port):
-    """Connect the client socket to a server"""
     try:
         client_socket.connect((host,port))
         print(f"Connected to server {host}:{port}")
@@ -25,10 +19,9 @@ def connect_socket(client_socket,host,port):
         print(f"Error connecting to server: {e}")
         sys.exit(1)
 
-def handle_command(message):
-    """Handle the command entered by the user"""
+def handle_command(message:str):
     parts=message.split()
-    if len(parts)==0:
+    if len(parts) == 0:
         return
     command=parts[0].lower()
     
@@ -37,14 +30,13 @@ def handle_command(message):
     else:
         cmd_h.command_map[command](parts)
 
-def discover_servers(broadcast_port):
+def discover_servers(broadcast_port:int) -> list:
     """Discover servers on the local network using UDP broadcast."""
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    client_socket.settimeout(5)  # Wait for 5 seconds for responses
+    client_socket.settimeout(3)
 
-    message = "DISCOVER_SERVER"
-    client_socket.sendto(message.encode(), ('<broadcast>', broadcast_port))
+    client_socket.sendto("DISCOVER_SERVER".encode(), ('<broadcast>', broadcast_port))
     servers = []
     
     try:
@@ -54,27 +46,30 @@ def discover_servers(broadcast_port):
             servers.append(response.decode())
     except socket.timeout:
         print("Server discovery timed out.")
-
-    return servers        
-
+    return servers
 
 def main():
-    broadcast_port = 9999  # Port to send and listen for discovery messages
+    broadcast_port = 9999 
     print("Discovering servers on the local network...")
     servers = discover_servers(broadcast_port)
     
     if servers:
-        print(f"Found servers: {servers}")
-        # You can now connect to one of the servers (e.g., based on response or user choice)
-        chosen_server = servers[0]  # Just pick the first one for simplicity
-        print(f"Connecting to {chosen_server}")
-        host, port = chosen_server.split(":")
-        client_socket=create_socket()
-        connect_socket(client_socket,host,int(port))
+        print(f"[+] Found servers: {servers}")
+        if len(servers) == 1:
+            print(f"Connecting to {servers[0]}...")
+            host, port = servers[c-1].split(":") 
+            connect_socket(create_socket(),host,int(port))
+        else:
+            c = -1
+            while (c not in range (1, len(servers)+1)):
+                print(f"Which server do you want to connect to ? ( 1 - {len(servers)} )")
+                c = int(input("> "))
+            host, port = servers[c-1].split(":") 
+
+        print(f"Okay, Connecting...")
+        connect_socket(create_socket(),host,int(port))
     else:
         print("No servers found!")
-    
-    
     
     print("Type 'help' for assistance")
     while(True):
@@ -84,5 +79,4 @@ def main():
         except KeyboardInterrupt:
             print("\nGoodbye")
             sys.exit(0)
-
 main()
