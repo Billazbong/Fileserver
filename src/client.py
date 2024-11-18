@@ -57,7 +57,7 @@ def main():
         print(f"[+] Found servers: {servers}")
         if len(servers) == 1:
             print(f"Connecting to {servers[0]}...")
-            host, port = servers[c-1].split(":") 
+            host, port = servers[0].split(":") 
             connect_socket(create_socket(),host,int(port))
         else:
             c = -1
