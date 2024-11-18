@@ -59,7 +59,6 @@ def discover_servers(broadcast_port):
 
 
 def main():
-    
     broadcast_port = 9999  # Port to send and listen for discovery messages
     print("Discovering servers on the local network...")
     servers = discover_servers(broadcast_port)
@@ -70,18 +69,13 @@ def main():
         chosen_server = servers[0]  # Just pick the first one for simplicity
         print(f"Connecting to {chosen_server}")
         host, port = chosen_server.split(":")
-        connect_socket(host, int(port))
+        client_socket=create_socket()
+        connect_socket(client_socket,host,int(port))
     else:
         print("No servers found!")
     
-    if len(sys.argv) != 3:
-        print(f"Usage:{sys.argv[0]} <server_host> <server_port>")
-        sys.exit(1)
-    host=sys.argv[1]
-    port=int(sys.argv[2])
     
-    client_socket=create_socket()
-    connect_socket(client_socket,host,port)
+    
     print("Type 'help' for assistance")
     while(True):
         try:
