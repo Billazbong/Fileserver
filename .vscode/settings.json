@@ -4,6 +4,9 @@
         "server.h": "c",
         "ip_helper.h": "c",
         "stdlib.h": "c",
-        "buffer.h": "c"
+        "buffer.h": "c",
+        "stdbool.h": "c",
+        "inet.h": "c",
+        "event.h": "c"
     }
 }
