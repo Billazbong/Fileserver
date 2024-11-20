@@ -54,7 +54,7 @@ def main():
     servers = discover_servers(broadcast_port)
     
     if servers:
-        print(f"[+] Found servers: {servers}")
+        print(f"[+] Found servers: \n" + "\n".join((f"{i} > {servers[i]}" for i in range(1, len(servers)))))
         if len(servers) == 1:
             print(f"Connecting to {servers[0]}...")
             host, port = servers[0].split(":") 
