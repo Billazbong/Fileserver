@@ -97,14 +97,7 @@ void on_accept(evutil_socket_t fd, short events, void* arg) {
 }
 
 void on_client_data(evutil_socket_t fd, short events, void* arg) {
-    Server* server = (Server*)arg;
-    int res = read(fd, server->buff.buffer, MAX_LEN);
-    if (res <= 0) {
-        printf("Client disconnected\n");
-        close(fd);
-        return;
-    }
-    write(fd, server->buff.buffer, res);
+    return;
 }
 
 void on_udp_broadcast(evutil_socket_t fd, short events, void* arg) {
