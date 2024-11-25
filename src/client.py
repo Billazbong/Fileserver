@@ -58,7 +58,6 @@ def main():
         if len(servers) == 1:
             print(f"Connecting to {servers[0]}...")
             host, port = servers[0].split(":") 
-            connect_socket(create_socket(),host,int(port))
         else:
             c = -1
             while (c not in range (1, len(servers)+1)):
@@ -67,7 +66,8 @@ def main():
             host, port = servers[c-1].split(":") 
 
         print(f"Okay, Connecting...")
-        connect_socket(create_socket(),host,int(port))
+        client_socket=create_socket()
+        connect_socket(client_socket,host,int(port))
     else:
         print("No servers found!")
     
@@ -75,7 +75,7 @@ def main():
     while(True):
         try:
             message=input(f"{os.getcwd()}>")
-            handle_command(message)
+            handle_command(client_socket,message)
         except KeyboardInterrupt:
             print("\nGoodbye")
             sys.exit(0)
