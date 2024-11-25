@@ -96,9 +96,89 @@ void on_accept(evutil_socket_t fd, short events, void* arg) {
     event_add(client_event, NULL);
 }
 
-void on_client_data(evutil_socket_t fd, short events, void* arg) {
-    return;
+void receive_file(int client_fd, const char* filename) {
+    char filepath[1024];
+    snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, filename);
+    printf("Receiving file at path: %s\n", filepath); // Débogage
+
+    FILE* file = fopen(filepath, "wb");
+    if (!file) {
+        perror("Could not open file to write");
+        return;
+    }
+
+    char buffer[1024];
+    int bytes_read;
+    while ((bytes_read = read(client_fd, buffer, sizeof(buffer))) > 0) {
+        size_t bytes_written = fwrite(buffer, 1, bytes_read, file);
+        if (bytes_written != bytes_read) {
+            perror("Error writing to file");
+            break;
+        }
+        printf("Wrote %d bytes to file\n", bytes_read); // Débogage
+    }
+
+    if (bytes_read == 0) {
+        printf("File '%s' received completely.\n", filename);
+    } else if (bytes_read < 0) {
+        perror("Error reading from client");
+    }
+    fclose(file);
 }
+
+void send_file_to_client(int client_fd, const char* filename) {
+    char filepath[1024];
+    snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, filename);
+    FILE* file = fopen(filepath, "rb");
+    if (!file) {
+        perror("Could not open file to read");
+        return;
+    }
+
+    char buffer[1024];
+    int bytes_read;
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
+        if (write(client_fd, buffer, bytes_read) < 0) {
+            perror("Error sending file to client");
+            break;
+        }
+        printf("Sent %d bytes to client\n", bytes_read); // Débogage
+    }
+
+    fclose(file);
+    printf("File '%s' sent to client.\n", filename);
+}
+
+
+void on_client_data(evutil_socket_t fd, short events, void* arg) {
+    Server* server = (Server*)arg;
+    int res = read(fd, server->buff.buffer, MAX_LEN);
+    if (res <= 0) {
+        printf("Client disconnected\n");
+        close(fd);
+        return;
+    }
+
+    server->buff.buffer[res] = '\0';
+    if (strncmp(server->buff.buffer, "upload", 6) == 0) {
+        char* filename = strtok(server->buff.buffer + 7, " \n");
+        if (filename) {
+            receive_file(fd, filename);
+        } else {
+            printf("No filename provided for upload\n");
+        }
+    } else if (strncmp(server->buff.buffer, "download", 8) == 0) {
+        char* filename = strtok(server->buff.buffer + 9, " \n");
+        if (filename) {
+            send_file_to_client(fd, filename);
+        } else {
+            printf("No filename provided for download\n");
+        }
+    } else {
+        write(fd, server->buff.buffer, res);
+    }
+}
+
 
 void on_udp_broadcast(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;

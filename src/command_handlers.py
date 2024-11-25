@@ -53,17 +53,57 @@ def handle_pwd(tokens):
     if check_command_validity(tokens,1):
         hit_server(tokens)
 
-def handle_download(tokens):
-    if check_command_validity(tokens,2):
-        hit_server(tokens)
+def handle_download(tokens, client_socket):
+    if check_command_validity(tokens, 2):
+        filename = tokens[1]
+        try:
+            # Envoyer la requête de téléchargement au serveur
+            client_socket.sendall(f"download {filename}".encode())
+            
+            # Recevoir le fichier du serveur
+            with open(filename, "wb") as file:
+                while True:
+                    data = client_socket.recv(1024)
+                    if not data:
+                        break
+                    file.write(data)
+                    print(f"Received {len(data)} bytes")
+            print(f"File '{filename}' downloaded successfully.")
+        except Exception as e:
+            print(f"Error during download: {e}")
 
-def handle_upload(tokens):
-    if check_command_validity(tokens,2):
-        path=tokens[1]
-    if not os.path.exists(path):
-        print(f"Path {path} does not exists.")
-        return
-    hit_server(tokens)
+
+def send_file(filepath, client_socket):
+    try:
+        with open(filepath, "rb") as file:
+            while True:
+                data = file.read(1024)
+                if not data:
+                    break
+                client_socket.sendall(data)
+                print(f"Sent {len(data)} bytes")
+        print(f"File '{filepath}' sent successfully.")
+    except FileNotFoundError:
+        print(f"File '{filepath}' not found.")
+    except Exception as e:
+        print(f"Error while sending file: {e}")
+
+
+
+def handle_upload(tokens, client_socket):
+    if check_command_validity(tokens, 2):
+        path = tokens[1]
+        if not os.path.exists(path):
+            print(f"Path {path} does not exist.")
+            return
+        try:
+            # Envoyer d'abord la commande d'upload au serveur
+            client_socket.sendall(f"upload {path}".encode())
+            # Ensuite, envoyer le fichier après la commande
+            send_file(path, client_socket)  # Correction : path en premier, client_socket en second
+        except Exception as e:
+            print(f"Error during upload: {e}")
+
 
 def check_command_validity(tokens:str, expected_length:int) -> bool:
     if len(tokens) is not expected_length:
@@ -72,7 +112,7 @@ def check_command_validity(tokens:str, expected_length:int) -> bool:
         return False
     return True
 
-def handle_lcd(tokens):
+def handle_lcd(tokens, _):
     if not check_command_validity(tokens,2):
         return
     path=tokens[1]
@@ -86,7 +126,7 @@ def handle_lcd(tokens):
     except Exception as e:
         print(f"Error acceding the directory : {e}")
 
-def handle_llist(tokens):
+def handle_llist(tokens, _):
     if not check_command_validity(tokens,1):
         return
     list=os.listdir()

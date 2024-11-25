@@ -19,16 +19,16 @@ def connect_socket(client_socket,host,port):
         print(f"Error connecting to server: {e}")
         sys.exit(1)
 
-def handle_command(message:str):
-    parts=message.split()
+def handle_command(client_socket, message: str):
+    parts = message.split()
     if len(parts) == 0:
         return
-    command=parts[0].lower()
+    command = parts[0].lower()
     
     if command not in cmd_h.command_map:
         print(f"Command '{command}' not found")
     else:
-        cmd_h.command_map[command](parts)
+        cmd_h.command_map[command](parts, client_socket)
 
 def discover_servers(broadcast_port:int) -> list:
     """Discover servers on the local network using UDP broadcast."""
