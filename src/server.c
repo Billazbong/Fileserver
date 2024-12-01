@@ -98,7 +98,7 @@ void on_accept(evutil_socket_t fd, short events, void* arg) {
 
 void receive_file(int client_fd, const char* filename) {
     char filepath[1024];
-    snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, filename);
+    snprintf(filepath, sizeof(filepath), "%s%s", STORAGE_DIR, filename);
     printf("Receiving file at path: %s\n", filepath); // Débogage
 
     FILE* file = fopen(filepath, "wb");
@@ -106,18 +106,17 @@ void receive_file(int client_fd, const char* filename) {
         perror("Could not open file to write");
         return;
     }
-
-    char buffer[1024];
+    char buffer[MAX_LEN];
     int bytes_read;
-    while ((bytes_read = read(client_fd, buffer, sizeof(buffer))) > 0) {
+    while ((bytes_read = recv(client_fd, buffer, MAX_LEN,0)) > 0) {
         size_t bytes_written = fwrite(buffer, 1, bytes_read, file);
         if (bytes_written != bytes_read) {
             perror("Error writing to file");
             break;
         }
+
         printf("Wrote %d bytes to file\n", bytes_read); // Débogage
     }
-
     if (bytes_read == 0) {
         printf("File '%s' received completely.\n", filename);
     } else if (bytes_read < 0) {
@@ -126,7 +125,8 @@ void receive_file(int client_fd, const char* filename) {
     fclose(file);
 }
 
-void send_file_to_client(int client_fd, const char* filename) {
+void send_file_to_client(int client_fd, const char* filename,void* arg) {
+    Server* server = (Server*)arg;
     char filepath[1024];
     snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, filename);
     FILE* file = fopen(filepath, "rb");
@@ -134,11 +134,9 @@ void send_file_to_client(int client_fd, const char* filename) {
         perror("Could not open file to read");
         return;
     }
-
-    char buffer[1024];
     int bytes_read;
-    while ((bytes_read = fread(buffer, 1, sizeof(buffer), file)) > 0) {
-        if (write(client_fd, buffer, bytes_read) < 0) {
+    while ((bytes_read = fread(server->buff.buffer, 1, MAX_LEN, file)) > 0) {
+        if (write(client_fd, server->buff.buffer, bytes_read) < 0) {
             perror("Error sending file to client");
             break;
         }
@@ -162,6 +160,7 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
     server->buff.buffer[res] = '\0';
     if (strncmp(server->buff.buffer, "upload", 6) == 0) {
         char* filename = strtok(server->buff.buffer + 7, " \n");
+        int res = send(fd,ACK,sizeof(ACK),0);
         if (filename) {
             receive_file(fd, filename);
         } else {
@@ -170,7 +169,7 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
     } else if (strncmp(server->buff.buffer, "download", 8) == 0) {
         char* filename = strtok(server->buff.buffer + 9, " \n");
         if (filename) {
-            send_file_to_client(fd, filename);
+            send_file_to_client(fd, filename,server);
         } else {
             printf("No filename provided for download\n");
         }
@@ -182,18 +181,17 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
 
 void on_udp_broadcast(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;
-    char buffer[MAX_LEN];
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
-    int recv_len = recvfrom(fd, buffer, sizeof(buffer), 0, (struct sockaddr*)&client_addr, &addr_len);
+    int recv_len = recvfrom(fd, server->buff.buffer, MAX_LEN, 0, (struct sockaddr*)&client_addr, &addr_len);
     if (recv_len < 0) {
         perror("Error receiving UDP message");
         return;
     }
 
-    buffer[recv_len] = '\0';
-    printf("Received broadcast message: %s\n", buffer);
+    server->buff.buffer[recv_len] = '\0';
+    printf("Received broadcast message: %s\n", server->buff.buffer);
 
     char response[1024];
     snprintf(response, sizeof(response), "%s:%d", inet_ntoa(server->serv_addr.sin_addr), ntohs(server->serv_addr.sin_port));

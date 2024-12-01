@@ -7,5 +7,6 @@
 #define BROADCAST_PORT 9999
 
 #define TOKEN_SIZE 1024
+#define ACK "ACK"
 
 #define MAX_BUFFER_SIZE 512 *1024

@@ -98,7 +98,14 @@ def handle_upload(tokens, client_socket):
             return
         try:
             # Envoyer d'abord la commande d'upload au serveur
-            client_socket.sendall(f"upload {path}".encode())
+            resp=""
+            while resp!="ACK" :
+                client_socket.sendall(f"upload {path}".encode())
+                resp=client_socket.recv(1024).decode("utf-8").strip()
+                if resp != "ACK":
+                    print(resp=="ACK") #HUH?
+                    print("Error while sending command")
+                    print("Retrying")
             # Ensuite, envoyer le fichier après la commande
             send_file(path, client_socket)  # Correction : path en premier, client_socket en second
         except Exception as e:
