@@ -132,24 +132,23 @@ int write_directory(int client_fd,char *dir_path){
     if(stat(dir_path,&st)==-1){
         mkdir(dir_path, 0777);
     }
+    char *newpath=malloc(sizeof(char)*1024);
     while ((bytes_received=recv(client_fd,buffer,MAX_BUFFER_SIZE,0))>0){
         int dir=is_dir(buffer,client_fd);
         if (dir==-1){
             return -1;
         }  
+        char *newpath=realloc(newpath,sizeof(char)*1024);
         if (dir==1){
             char *path = strtok(buffer + 4, " \n");
-            char dirpath[1024];
-            snprintf(dirpath, sizeof(dirpath), "%s/%s", STORAGE_DIR, path);
-            write_directory(client_fd,path);
+            snprintf(newpath, 1024, "%s/%s", STORAGE_DIR, path);
+            write_directory(client_fd,newpath);
         }
         else {
             char *path = strtok(buffer + 4, " \n");
-            char filepath[1024];
-            snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, path);
-            write_file(client_fd,filepath);
+            snprintf(newpath, 1024, "%s/%s", STORAGE_DIR, path);
+            write_file(client_fd,newpath);
         }
-        return 1;
     }
     return 1;
 }

@@ -77,7 +77,7 @@ def handle_download(tokens, client_socket):
             print(f"Error during download: {e}")
 
 def send_upload_type(message,client_socket):
-    client_socket.settimeout(5)
+    #client_socket.settimeout(5)
     attempt=0
     while attempt<3:
         try:
@@ -108,7 +108,7 @@ def send_file(filepath, client_socket):
                     client_socket.sendall(data)
                     print(f"Sent {len(data)} bytes")
             client_socket.sendall(END.encode())
-            resp=client_socket.recv(MAX_BUFFER_SIZE)
+            resp=client_socket.recv(MAX_BUFFER_SIZE).decode()
             if resp == "NACK":
                 print("Upload did not work properly")
                 return False
@@ -129,6 +129,9 @@ def send_directory(dir_path,client_socket):
     client_socket.settimeout(30)
     files=os.listdir(dir_path)
     for file in files:
+        if os.path.isdir(dir_path+"/"+file):
+            send_directory(dir_path+"/"+file,client_socket)
+            continue
         if send_file(dir_path+"/"+file,client_socket) is False:
             print(f"{file} could not be uploaded")
         else:
