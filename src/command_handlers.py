@@ -76,20 +76,42 @@ def handle_download(tokens, client_socket):
         except Exception as e:
             print(f"Error during download: {e}")
 
+def send_upload_type(message,client_socket):
+    client_socket.settimeout(5)
+    attempt=0
+    while attempt<3:
+        try:
+            client_socket.sendall(message.encode())
+            resp=client_socket.recv(MAX_BUFFER_SIZE).decode()
+            if resp=="NACK":
+                attempt+=1
+            return resp=="ACK"
+        except socket.timeout:
+            print(f"Attempt {attempt + 1}: Timeout occurred while sending data")
+            attempt+=1
+        except Exception as e:
+            print(f"Error while sending request: {e}")
+    return False
 
 def send_file(filepath, client_socket):
-    client_socket.settimeout(5)
+    if send_upload_type(f"file {filepath}",client_socket) is False:
+        return False
+    client_socket.settimeout(30)
     attempt=0
     while attempt<3 :
         try:
             with open(filepath, "rb") as file:
                 while True:
-                    data = file.read(8192)
+                    data = file.read(MAX_BUFFER_SIZE)
                     if not data:
                         break
                     client_socket.sendall(data)
                     print(f"Sent {len(data)} bytes")
             client_socket.sendall(END.encode())
+            resp=client_socket.recv(MAX_BUFFER_SIZE)
+            if resp == "NACK":
+                print("Upload did not work properly")
+                return False
             print(f"File '{filepath}' sent successfully.")
             return True
         except socket.timeout:
@@ -101,8 +123,16 @@ def send_file(filepath, client_socket):
             print(f"Error while sending file: {e}")
     return False
 
-def send_directory(filepath,client_socket):
-    
+def send_directory(dir_path,client_socket):
+    if send_upload_type(f"dir {dir_path}",client_socket) is False:
+        return
+    client_socket.settimeout(30)
+    files=os.listdir(dir_path)
+    for file in files:
+        if send_file(dir_path+"/"+file,client_socket) is False:
+            print(f"{file} could not be uploaded")
+        else:
+            print(f"{file} successfully uploaded")
 
 
 def handle_upload(tokens, client_socket):
@@ -120,7 +150,7 @@ def handle_upload(tokens, client_socket):
                 while resp!="ACK" :
                     client_socket.sendall(f"upload {path}".encode())
                     resp=client_socket.recv(8192).decode("utf-8").strip()
-                    if resp != "ACK":
+                    if resp == "NACK":
                         print("Error while sending command")
                         print("Retrying")
                 # Ensuite, envoyer le fichier après la commande
@@ -133,7 +163,7 @@ def handle_upload(tokens, client_socket):
                 attempt+=1
             except Exception as e:
                 print(f"Error during upload: {e}")
-            return False
+        return False
 
 
 def check_command_validity(tokens:str, expected_length:int) -> bool:

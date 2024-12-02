@@ -96,23 +96,19 @@ void on_accept(evutil_socket_t fd, short events, void* arg) {
     event_add(client_event, NULL);
 }
 
-void receive_file(int client_fd, const char* filename) {
-    char filepath[1024];
-    snprintf(filepath, sizeof(filepath), "%s%s", STORAGE_DIR, filename);
-    printf("Receiving file at path: %s\n", filepath); // Débogage
-
+int write_file(int client_fd,char *filepath){
+    size_t bytes_read;
+    char buffer[MAX_BUFFER_SIZE];
     FILE* file = fopen(filepath, "wb");
     if (!file) {
         perror("Could not open file to write");
-        return;
+        return -1;
     }
-    char buffer[MAX_BUFFER_SIZE];
-    int bytes_read;
     while ((bytes_read = recv(client_fd, buffer, MAX_BUFFER_SIZE,0)) > 0) {
         if (check_end_signal(buffer,bytes_read)){
             if (bytes_read-LEN_END>0){
                 fwrite(buffer,1,bytes_read-LEN_END,file);
-                printf("Wrote %d bytes to file\n", bytes_read-LEN_END);
+                printf("Wrote %ld bytes to file\n", bytes_read-LEN_END);
             }
             printf("Received end of transmission signal\n");
             break;
@@ -122,9 +118,71 @@ void receive_file(int client_fd, const char* filename) {
             perror("Error writing to file");
             break;
         }
-        printf("Wrote %d bytes to file\n", bytes_read); // Débogage
+        printf("Wrote %ld bytes to file\n", bytes_read); // Débogage
     }
+    send(client_fd,ACK,strlen(ACK),0);
     fclose(file);
+    return 1;
+}
+
+int write_directory(int client_fd,char *dir_path){
+    struct stat st ={0};
+    size_t bytes_received=0;
+    char buffer[MAX_BUFFER_SIZE];
+    if(stat(dir_path,&st)==-1){
+        mkdir(dir_path, 0777);
+    }
+    while ((bytes_received=recv(client_fd,buffer,MAX_BUFFER_SIZE,0))>0){
+        int dir=is_dir(buffer,client_fd);
+        if (dir==-1){
+            return -1;
+        }  
+        if (dir==1){
+            char *path = strtok(buffer + 4, " \n");
+            char dirpath[1024];
+            snprintf(dirpath, sizeof(dirpath), "%s/%s", STORAGE_DIR, path);
+            write_directory(client_fd,path);
+        }
+        else {
+            char *path = strtok(buffer + 4, " \n");
+            char filepath[1024];
+            snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, path);
+            write_file(client_fd,filepath);
+        }
+        return 1;
+    }
+    return 1;
+}
+
+
+
+void receive_upload(int client_fd, const char* path) {
+    char buffer[MAX_BUFFER_SIZE];
+    size_t bytes_read;
+    int dir=-1;
+    int attempt=0;
+    while (attempt<3 && dir==-1){
+        bytes_read=recv(client_fd,buffer,MAX_BUFFER_SIZE,0);
+        if (bytes_read<=0){
+            printf("Client connection closed");
+        }
+        dir=is_dir(buffer,client_fd);
+        if (dir==-1) attempt++;
+    }
+    if (attempt==3){
+        printf("Could not receive new request");
+        return;
+    }
+    char newpath[1024];
+    snprintf(newpath, sizeof(newpath), "%s%s", STORAGE_DIR, path);
+    printf("Receiving file at path: %s\n", newpath); // Débogage
+    if (!dir){
+        write_file(client_fd,newpath);
+    }
+    else {
+        write_directory(client_fd,newpath);
+    }
+    
 }
 
 void send_file_to_client(int client_fd, const char* filename,void* arg) {
@@ -161,19 +219,20 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
 
     server->buff.buffer[res] = '\0';
     if (strncmp(server->buff.buffer, "upload", 6) == 0) {
-        char* filename = strtok(server->buff.buffer + 7, " \n");
-        if (filename) {
+        char* path = strtok(server->buff.buffer + 7, " \n");
+        if (path) {
             send(fd,ACK,strlen(ACK),0);
-            receive_file(fd, filename);
+            receive_upload(fd, path);
         } else {
-            printf("No filename provided for upload\n");
+            send(fd,NACK,strlen(NACK),0);
+            printf("No path provided for upload\n");
         }
     } else if (strncmp(server->buff.buffer, "download", 8) == 0) {
-        char* filename = strtok(server->buff.buffer + 9, " \n");
-        if (filename) {
-            send_file_to_client(fd, filename,server);
+        char* path = strtok(server->buff.buffer + 9, " \n");
+        if (path) {
+            send_file_to_client(fd, path,server);
         } else {
-            printf("No filename provided for download\n");
+            printf("No path provided for download\n");
         }
     } else {
         write(fd, server->buff.buffer, res);
