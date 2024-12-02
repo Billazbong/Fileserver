@@ -77,7 +77,7 @@ def handle_download(tokens, client_socket):
             print(f"Error during download: {e}")
 
 def send_upload_type(message,client_socket):
-    #client_socket.settimeout(5)
+    #client_socket.settimeout(115)
     attempt=0
     while attempt<3:
         try:
@@ -96,7 +96,7 @@ def send_upload_type(message,client_socket):
 def send_file(filepath, client_socket):
     if send_upload_type(f"file {filepath}",client_socket) is False:
         return False
-    client_socket.settimeout(30)
+    client_socket.settimeout(1130)
     attempt=0
     while attempt<3 :
         try:
@@ -124,22 +124,38 @@ def send_file(filepath, client_socket):
     return False
 
 def send_directory(dir_path,client_socket):
-    if send_upload_type(f"dir {dir_path}",client_socket) is False:
-        return
-    client_socket.settimeout(30)
-    files=os.listdir(dir_path)
-    for file in files:
-        if os.path.isdir(dir_path+"/"+file):
-            send_directory(dir_path+"/"+file,client_socket)
-            continue
-        if send_file(dir_path+"/"+file,client_socket) is False:
-            print(f"{file} could not be uploaded")
-        else:
-            print(f"{file} successfully uploaded")
+    ack=False
+    attempt=0
+    client_socket.settimeout(1130)
+    while not ack and attempt < 3:
+        try :
+            if send_upload_type(f"dir {dir_path}",client_socket) is False:
+                return
+            files=os.listdir(dir_path)
+            for file in files:
+                if os.path.isdir(dir_path+"/"+file):
+                    send_directory(dir_path+"/"+file,client_socket)
+                    continue
+                if send_file(dir_path+"/"+file,client_socket) is False:
+                    print(f"{file} could not be uploaded")
+                else:
+                    print(f"{file} successfully uploaded")
+            client_socket.sendall(END.encode())
+            resp=client_socket.recv(1024).decode()
+            ack=resp=="ACK"
+        except socket.timeout :
+            print("Timeout")
+            attempt+=1
+        except Exception as e:
+            print(f"Error : {e}")
+    if attempt==3:
+        return False
+    return True
+    
 
 
 def handle_upload(tokens, client_socket):
-    client_socket.settimeout(5)
+    client_socket.settimeout(115)
     if check_command_validity(tokens, 2):
         path = tokens[1]
         if not os.path.exists(path):

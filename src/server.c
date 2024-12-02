@@ -102,7 +102,7 @@ int write_file(int client_fd,char *filepath){
     FILE* file = fopen(filepath, "wb");
     if (!file) {
         perror("Could not open file to write");
-        return -1;
+        return ERR;
     }
     while ((bytes_read = recv(client_fd, buffer, MAX_BUFFER_SIZE,0)) > 0) {
         if (check_end_signal(buffer,bytes_read)){
@@ -127,29 +127,48 @@ int write_file(int client_fd,char *filepath){
 
 int write_directory(int client_fd,char *dir_path){
     struct stat st ={0};
-    size_t bytes_received=0;
-    char buffer[MAX_BUFFER_SIZE];
+    size_t bytes_read=0;
+    char buffer[MAX_BUFFER_SIZE]="";
     if(stat(dir_path,&st)==-1){
         mkdir(dir_path, 0777);
     }
-    char *newpath=malloc(sizeof(char)*1024);
-    while ((bytes_received=recv(client_fd,buffer,MAX_BUFFER_SIZE,0))>0){
+    char *newpath=calloc(1024,sizeof(char));
+    char *filedir=calloc(1024,sizeof(char));
+    while ((bytes_read=recv(client_fd,buffer,MAX_BUFFER_SIZE,0))>0){
+        if (check_end_signal(buffer,bytes_read)){
+            printf("Received end of transmission signal\n");
+            send(client_fd,ACK,strlen(ACK),0);
+            break;
+        }
         int dir=is_dir(buffer,client_fd);
         if (dir==-1){
-            return -1;
+            free(newpath);
+            free(filedir);
+            perror("Could not recognize file :");
+            return ERR;
         }  
-        char *newpath=realloc(newpath,sizeof(char)*1024);
+        memset(newpath,0,1024);
+        memset(filedir,0,1024);
         if (dir==1){
             char *path = strtok(buffer + 4, " \n");
-            snprintf(newpath, 1024, "%s/%s", STORAGE_DIR, path);
-            write_directory(client_fd,newpath);
+            snprintf(newpath, 1024, "%s%s", STORAGE_DIR, path);
+            int res=write_directory(client_fd,newpath);
+            if (res==ERR) {
+                perror("Failed to download directory :");
+                free(newpath);
+                free(filedir);
+                return ERR;
+            }
         }
         else {
             char *path = strtok(buffer + 4, " \n");
-            snprintf(newpath, 1024, "%s/%s", STORAGE_DIR, path);
+            snprintf(newpath, 1024, "%s%s", STORAGE_DIR, path);
             write_file(client_fd,newpath);
         }
+        memset(buffer, 0, MAX_BUFFER_SIZE);
     }
+    free(newpath);
+    free(filedir);
     return 1;
 }
 
