@@ -1,4 +1,5 @@
 import os
+import socket
 
 # Dictionary to store commands (mostly used for 'help')
 commands = {
@@ -14,6 +15,9 @@ commands = {
     'download' : 'Transfers a file/directory from the current directory of the fileserver to the current directory of the client.\nUsage : download <filename>/<directory>',
     'upload' : 'Transfers a file/directory from the current directory of the client to the current directory of the fileserver.\nUsage : upload <filename>/<directory>',
 }
+
+MAX_BUFFER_SIZE=8192
+END="END"
 
 def hit_server(socket, tokens):
     socket.sendall(" ".join(tokens))
@@ -74,42 +78,62 @@ def handle_download(tokens, client_socket):
 
 
 def send_file(filepath, client_socket):
-    try:
-        with open(filepath, "rb") as file:
-            while True:
-                data = file.read(1024)
-                if not data:
-                    break
-                client_socket.sendall(data)
-                print(f"Sent {len(data)} bytes")
-        print(f"File '{filepath}' sent successfully.")
-    except FileNotFoundError:
-        print(f"File '{filepath}' not found.")
-    except Exception as e:
-        print(f"Error while sending file: {e}")
+    client_socket.settimeout(5)
+    attempt=0
+    while attempt<3 :
+        try:
+            with open(filepath, "rb") as file:
+                while True:
+                    data = file.read(8192)
+                    if not data:
+                        break
+                    client_socket.sendall(data)
+                    print(f"Sent {len(data)} bytes")
+            client_socket.sendall(END.encode())
+            print(f"File '{filepath}' sent successfully.")
+            return True
+        except socket.timeout:
+            print(f"Attempt {attempt + 1}: Timeout occurred while sending data")
+            attempt+=1
+        except FileNotFoundError:
+            print(f"File '{filepath}' not found.")
+        except Exception as e:
+            print(f"Error while sending file: {e}")
+    return False
 
+def send_directory(filepath,client_socket):
+    
 
 
 def handle_upload(tokens, client_socket):
+    client_socket.settimeout(5)
     if check_command_validity(tokens, 2):
         path = tokens[1]
         if not os.path.exists(path):
             print(f"Path {path} does not exist.")
             return
-        try:
-            # Envoyer d'abord la commande d'upload au serveur
-            resp=""
-            while resp!="ACK" :
-                client_socket.sendall(f"upload {path}".encode())
-                resp=client_socket.recv(1024).decode("utf-8").strip()
-                if resp != "ACK":
-                    print(resp=="ACK") #HUH?
-                    print("Error while sending command")
-                    print("Retrying")
-            # Ensuite, envoyer le fichier après la commande
-            send_file(path, client_socket)  # Correction : path en premier, client_socket en second
-        except Exception as e:
-            print(f"Error during upload: {e}")
+        attempt=0
+        while attempt<3:
+            try:
+                # Envoyer d'abord la commande d'upload au serveur
+                resp=""
+                while resp!="ACK" :
+                    client_socket.sendall(f"upload {path}".encode())
+                    resp=client_socket.recv(8192).decode("utf-8").strip()
+                    if resp != "ACK":
+                        print("Error while sending command")
+                        print("Retrying")
+                # Ensuite, envoyer le fichier après la commande
+                if os.path.isdir(path):
+                    return send_directory(path, client_socket)
+                else:
+                    return send_file(path, client_socket)
+            except socket.timeout:
+                print(f"Attempt {attempt + 1}: Timeout occurred while sending data")
+                attempt+=1
+            except Exception as e:
+                print(f"Error during upload: {e}")
+            return False
 
 
 def check_command_validity(tokens:str, expected_length:int) -> bool:

@@ -8,5 +8,7 @@
 
 #define TOKEN_SIZE 1024
 #define ACK "ACK"
+#define END "END"
+#define LEN_END 3
 
-#define MAX_BUFFER_SIZE 512 *1024
+#define MAX_BUFFER_SIZE 8192

@@ -16,6 +16,8 @@
 
 #include "ip_helper.h"
 #include "buffer.h"
+#include "utility.h"
+
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)

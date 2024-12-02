@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "server.h": "c",
+        "buffer.h": "c",
+        "ip_helper.h": "c"
+    }
+}

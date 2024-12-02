@@ -32,7 +32,7 @@ void setup_storage_dir() {
 void init(Server* server, int port, const char* interface) {
     printf("Setting up the storage directory...\n");
     setup_storage_dir();
-    init_with_capacity(&server->buff, MAX_LEN);
+    init_with_capacity(&server->buff, MAX_BUFFER_SIZE);
 
     printf("Setting up the socket...\n");
     if ((server->tcp_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
@@ -106,21 +106,23 @@ void receive_file(int client_fd, const char* filename) {
         perror("Could not open file to write");
         return;
     }
-    char buffer[MAX_LEN];
+    char buffer[MAX_BUFFER_SIZE];
     int bytes_read;
-    while ((bytes_read = recv(client_fd, buffer, MAX_LEN,0)) > 0) {
+    while ((bytes_read = recv(client_fd, buffer, MAX_BUFFER_SIZE,0)) > 0) {
+        if (check_end_signal(buffer,bytes_read)){
+            if (bytes_read-LEN_END>0){
+                fwrite(buffer,1,bytes_read-LEN_END,file);
+                printf("Wrote %d bytes to file\n", bytes_read-LEN_END);
+            }
+            printf("Received end of transmission signal\n");
+            break;
+        }
         size_t bytes_written = fwrite(buffer, 1, bytes_read, file);
         if (bytes_written != bytes_read) {
             perror("Error writing to file");
             break;
         }
-
         printf("Wrote %d bytes to file\n", bytes_read); // Débogage
-    }
-    if (bytes_read == 0) {
-        printf("File '%s' received completely.\n", filename);
-    } else if (bytes_read < 0) {
-        perror("Error reading from client");
     }
     fclose(file);
 }
@@ -135,7 +137,7 @@ void send_file_to_client(int client_fd, const char* filename,void* arg) {
         return;
     }
     int bytes_read;
-    while ((bytes_read = fread(server->buff.buffer, 1, MAX_LEN, file)) > 0) {
+    while ((bytes_read = fread(server->buff.buffer, 1, MAX_BUFFER_SIZE, file)) > 0) {
         if (write(client_fd, server->buff.buffer, bytes_read) < 0) {
             perror("Error sending file to client");
             break;
@@ -150,7 +152,7 @@ void send_file_to_client(int client_fd, const char* filename,void* arg) {
 
 void on_client_data(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;
-    int res = read(fd, server->buff.buffer, MAX_LEN);
+    int res = read(fd, server->buff.buffer, MAX_BUFFER_SIZE);
     if (res <= 0) {
         printf("Client disconnected\n");
         close(fd);
@@ -160,8 +162,8 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
     server->buff.buffer[res] = '\0';
     if (strncmp(server->buff.buffer, "upload", 6) == 0) {
         char* filename = strtok(server->buff.buffer + 7, " \n");
-        int res = send(fd,ACK,sizeof(ACK),0);
         if (filename) {
+            send(fd,ACK,strlen(ACK),0);
             receive_file(fd, filename);
         } else {
             printf("No filename provided for upload\n");
@@ -184,7 +186,7 @@ void on_udp_broadcast(evutil_socket_t fd, short events, void* arg) {
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
-    int recv_len = recvfrom(fd, server->buff.buffer, MAX_LEN, 0, (struct sockaddr*)&client_addr, &addr_len);
+    int recv_len = recvfrom(fd, server->buff.buffer, MAX_BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &addr_len);
     if (recv_len < 0) {
         perror("Error receiving UDP message");
         return;
