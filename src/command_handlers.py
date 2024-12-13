@@ -77,7 +77,7 @@ def handle_download(tokens, client_socket):
             print(f"Error during download: {e}")
 
 def send_upload_type(message,client_socket):
-    #client_socket.settimeout(115)
+    client_socket.settimeout(10)
     attempt=0
     while attempt<3:
         try:
@@ -85,6 +85,8 @@ def send_upload_type(message,client_socket):
             resp=client_socket.recv(MAX_BUFFER_SIZE).decode()
             if resp=="NACK":
                 attempt+=1
+                print("Received NACK from server, resending the message." if attempt<3 else "Could not send message to server.")
+                continue
             return resp=="ACK"
         except socket.timeout:
             print(f"Attempt {attempt + 1}: Timeout occurred while sending data")
@@ -96,7 +98,7 @@ def send_upload_type(message,client_socket):
 def send_file(filepath, client_socket):
     if send_upload_type(f"file {filepath}",client_socket) is False:
         return False
-    client_socket.settimeout(1130)
+    client_socket.settimeout(10)
     attempt=0
     while attempt<3 :
         try:
@@ -126,7 +128,7 @@ def send_file(filepath, client_socket):
 def send_directory(dir_path,client_socket):
     ack=False
     attempt=0
-    client_socket.settimeout(1130)
+    client_socket.settimeout(10)
     while not ack and attempt < 3:
         try :
             if send_upload_type(f"dir {dir_path}",client_socket) is False:

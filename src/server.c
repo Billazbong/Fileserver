@@ -188,7 +188,7 @@ void receive_upload(int client_fd, const char* path) {
         if (dir==-1) attempt++;
     }
     if (attempt==3){
-        printf("Could not receive new request");
+        printf("Could not receive new request\n");
         return;
     }
     char newpath[1024];
