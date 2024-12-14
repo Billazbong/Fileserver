@@ -17,11 +17,16 @@
 #include "ip_helper.h"
 #include "buffer.h"
 #include "utility.h"
-
+#include "constants.h"
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 #define err(s, n) { perror("[-] In file "__FILE__" at line "TOSTRING(__LINE__)": " #s); exit(n); }
+
+typedef struct {
+    int socket;
+    char current_dir[1024];
+} client_session;
 
 /**
  * @brief Represents a server instance and its associated data.
@@ -32,6 +37,7 @@ typedef struct {
     struct sockaddr_in serv_addr;    // Server's address information (IP address and port).
     Buffer buff;                     // Buffer for handling client data.
     struct event_base* base;         // Event base for libevent.
+    client_session clients[MAX_CLIENT];
 } Server;
 
 // Function prototypes

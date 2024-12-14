@@ -1,5 +1,7 @@
 #include "../include/server.h"
 
+int num_clients=0; //DO NOT MODIFY THAT PLEASE IT WILL BREAK EVERYTHING
+client_session clients[MAX_CLIENT];
 /**
     * @brief Sets up the storage directory.
     * Checks if the storage directory exists. 
@@ -33,7 +35,7 @@ void init(Server* server, int port, const char* interface) {
     printf("Setting up the storage directory...\n");
     setup_storage_dir();
     init_with_capacity(&server->buff, MAX_BUFFER_SIZE);
-
+    num_clients=0;
     printf("Setting up the socket...\n");
     if ((server->tcp_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
         err(Could not initialize the server socket, 4);
@@ -80,6 +82,15 @@ void init(Server* server, int port, const char* interface) {
     printf("UDP socket bound for broadcast discovery on port %d\n", BROADCAST_PORT);
 }
 
+client_session* get_client_session_by_socket(int socket) {
+    for (int i = 0; i < num_clients; i++) {
+        if (clients[i].socket == socket) {
+            return &clients[i];
+        }
+    }
+    return NULL;  
+}
+
 void on_accept(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;
     struct sockaddr_in client_addr;
@@ -91,7 +102,9 @@ void on_accept(evutil_socket_t fd, short events, void* arg) {
     }
 
     printf("[!] New client connected\n");
-
+    clients[num_clients].socket = client_fd;
+    strcpy(clients[num_clients].current_dir, STORAGE_DIR);
+    num_clients++;
     struct event* client_event = event_new(server->base, client_fd, EV_READ | EV_PERSIST, on_client_data, server);
     event_add(client_event, NULL);
 }
@@ -212,8 +225,6 @@ int write_directory(int client_fd,char *dir_path){
     return 1;
 }
 
-
-
 void receive_upload(int client_fd, const char* path) {
     char buffer[MAX_BUFFER_SIZE];
     size_t bytes_read;
@@ -241,8 +252,15 @@ void receive_upload(int client_fd, const char* path) {
         printf("Could not receive new request\n");
         return;
     }
+
+    client_session *client=get_client_session_by_socket(client_fd);
+    if (client==NULL){
+        printf("Client session not found\n");
+        close(client_fd);
+        return;
+    }
     char newpath[1024];
-    snprintf(newpath, sizeof(newpath), "%s%s", STORAGE_DIR, path);
+    snprintf(newpath, sizeof(newpath), "%s%s", client->current_dir , path);
     printf("Receiving file at path: %s\n", newpath); // Débogage
     if (!dir){
         write_file(client_fd,newpath);
@@ -274,7 +292,6 @@ void send_file_to_client(int client_fd, const char* filename,void* arg) {
     fclose(file);
     printf("File '%s' sent to client.\n", filename);
 }
-
 
 void on_client_data(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;
