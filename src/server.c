@@ -113,13 +113,12 @@ int write_file(int client_fd,char *filepath){
     while (attempt<3) {
         bytes_read = recv(client_fd, buffer, MAX_BUFFER_SIZE, 0);
         if (bytes_read == 0) {
-            // Client has closed the connection
             printf("Client closed the connection\n");
             close(client_fd);
             break;
         }
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            // Handle timeout
+            errno = 0;
             printf("Timeout occurred, no data received\n");
             send(client_fd,NACK,strlen(NACK),0);
             attempt++;
@@ -135,7 +134,6 @@ int write_file(int client_fd,char *filepath){
             send(client_fd,ACK,strlen(ACK),0);
             break;
         }
-        // Write data to the file
         size_t bytes_written = fwrite(buffer, 1, bytes_read, file);
         if (bytes_written != bytes_read) {
             perror("Error writing to file");
@@ -168,6 +166,7 @@ int write_directory(int client_fd,char *dir_path){
             break; 
         }
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            errno = 0;
             printf("Timeout occurred, no data received\n");
             send(client_fd,NACK,strlen(NACK),0);
             attempt++;
@@ -230,6 +229,7 @@ void receive_upload(int client_fd, const char* path) {
             break;
         }
         if (errno==EWOULDBLOCK || errno==EAGAIN){
+            errno = 0;
             printf("Timeout occurred, no data received\n");
             attempt++;
             continue;
