@@ -121,12 +121,12 @@ def find_server_from_file():
 
 def main():
     client_socket=0
-    print("Choose how to find servers :")
-    print("1. Discover servers")
-    print("2. Look for specific file")
     choice=0
-    while(client_socket==0 and (choice<1 or choice>2) ):
+    while(client_socket==0 or choice<1 or choice>2):
         try:
+            print("Choose how to find servers :")
+            print("1. Discover servers")
+            print("2. Look for specific file")
             choice=int(input(">"))
             if choice==1:
                 client_socket=broadcast()

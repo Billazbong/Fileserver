@@ -50,7 +50,6 @@ int look_for_file(char *filename,char *path){
     while ((entry=readdir(dp))){
         char fullpath[1024];
         snprintf(fullpath, sizeof(fullpath), "%s/%s", path, entry->d_name);
-        printf("%s\n",fullpath);
         if (stat(fullpath, &st) == 0) {
             if (S_ISDIR(st.st_mode)) {
                 if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
@@ -63,7 +62,7 @@ int look_for_file(char *filename,char *path){
             } else if (S_ISREG(st.st_mode)) {
                 if (strcmp(entry->d_name, filename) == 0) {
                     closedir(dp);
-                    return get_file_size(filename);
+                    return get_file_size(fullpath);
                 }
             }
         }
