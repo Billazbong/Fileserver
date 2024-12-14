@@ -112,40 +112,36 @@ int write_file(int client_fd,char *filepath){
     int attempt=0;
     while (attempt<3) {
         bytes_read = recv(client_fd, buffer, MAX_BUFFER_SIZE, 0);
-        if (bytes_read > 0) {
-            // Check for end signal in the data
-            if (check_end_signal(buffer, bytes_read)) {
-                if (bytes_read - LEN_END > 0) {
-                    fwrite(buffer, 1, bytes_read - LEN_END, file);
-                    printf("Wrote %ld bytes to file\n", bytes_read - LEN_END);
-                }
-                printf("Received end of transmission signal\n");
-                send(client_fd,ACK,strlen(ACK),0);
-                break;
-            }
-            // Write data to the file
-            size_t bytes_written = fwrite(buffer, 1, bytes_read, file);
-            if (bytes_written != bytes_read) {
-                perror("Error writing to file");
-                break;
-            }
-            printf("Wrote %ld bytes to file\n", bytes_read);
-        } else if (bytes_read == 0) {
+        if (bytes_read == 0) {
             // Client has closed the connection
             printf("Client closed the connection\n");
             close(client_fd);
             break;
-        } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        }
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
             // Handle timeout
             printf("Timeout occurred, no data received\n");
             send(client_fd,NACK,strlen(NACK),0);
             attempt++;
-        } else {
-            // Handle other errors
-            perror("recv failed");
-            send(client_fd,NACK,strlen(NACK),0);
-            attempt++;
         }
+
+
+        if (check_end_signal(buffer, bytes_read)) {
+            if (bytes_read - LEN_END > 0) {
+                fwrite(buffer, 1, bytes_read - LEN_END, file);
+                printf("Wrote %ld bytes to file\n", bytes_read - LEN_END);
+            }
+            printf("Received end of transmission signal\n");
+            send(client_fd,ACK,strlen(ACK),0);
+            break;
+        }
+        // Write data to the file
+        size_t bytes_written = fwrite(buffer, 1, bytes_read, file);
+        if (bytes_written != bytes_read) {
+            perror("Error writing to file");
+            break;
+        }
+        printf("Wrote %ld bytes to file\n", bytes_read);
     }
     send(client_fd,ACK,strlen(ACK),0);
     fclose(file);
@@ -161,37 +157,55 @@ int write_directory(int client_fd,char *dir_path){
     }
     char *newpath=calloc(1024,sizeof(char));
     char *filedir=calloc(1024,sizeof(char));
-    while ((bytes_read=recv(client_fd,buffer,MAX_BUFFER_SIZE,0))>0){
-        if (check_end_signal(buffer,bytes_read)){
+    struct timeval timeout={5,0};
+    setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    int attempt=0;
+    while (attempt<3) {
+        bytes_read = recv(client_fd, buffer, MAX_BUFFER_SIZE, 0);
+        if (bytes_read==0){
+            printf("Client closed the connection\n");
+            close(client_fd);
+            break; 
+        }
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            printf("Timeout occurred, no data received\n");
+            send(client_fd,NACK,strlen(NACK),0);
+            attempt++;
+            continue;
+        }
+
+        if (check_end_signal(buffer, bytes_read)) {
             printf("Received end of transmission signal\n");
-            send(client_fd,ACK,strlen(ACK),0);
+            send(client_fd, ACK, strlen(ACK), 0);
             break;
         }
-        int dir=is_dir(buffer,client_fd);
-        if (dir==-1){
+        int dir = is_dir(buffer, client_fd);
+        if (dir == -1) {
             free(newpath);
             free(filedir);
             perror("Could not recognize file :");
             return ERR;
-        }  
-        memset(newpath,0,1024);
-        memset(filedir,0,1024);
-        if (dir==1){
+        }
+
+        memset(newpath, 0, 1024);
+        memset(filedir, 0, 1024);
+
+        if (dir == 1) {
             char *path = strtok(buffer + 4, " \n");
             snprintf(newpath, 1024, "%s%s", STORAGE_DIR, path);
-            int res=write_directory(client_fd,newpath);
-            if (res==ERR) {
+            int res = write_directory(client_fd, newpath);
+            if (res == ERR) {
                 perror("Failed to download directory :");
                 free(newpath);
                 free(filedir);
                 return ERR;
             }
-        }
-        else {
+        } else {
             char *path = strtok(buffer + 4, " \n");
             snprintf(newpath, 1024, "%s%s", STORAGE_DIR, path);
-            write_file(client_fd,newpath);
+            write_file(client_fd, newpath);
         }
+
         memset(buffer, 0, MAX_BUFFER_SIZE);
     }
     free(newpath);
@@ -205,11 +219,20 @@ void receive_upload(int client_fd, const char* path) {
     char buffer[MAX_BUFFER_SIZE];
     size_t bytes_read;
     int dir=-1;
+    struct timeval timeout={5,0};
+    setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     int attempt=0;
     while (attempt<3 && dir==-1){
         bytes_read=recv(client_fd,buffer,MAX_BUFFER_SIZE,0);
-        if (bytes_read<=0){
+        if (bytes_read==0){
             printf("Client connection closed");
+            close(client_fd);
+            break;
+        }
+        if (errno==EWOULDBLOCK || errno==EAGAIN){
+            printf("Timeout occurred, no data received\n");
+            attempt++;
+            continue;
         }
         dir=is_dir(buffer,client_fd);
         if (dir==-1) attempt++;
