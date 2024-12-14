@@ -99,26 +99,53 @@ void on_accept(evutil_socket_t fd, short events, void* arg) {
 int write_file(int client_fd,char *filepath){
     size_t bytes_read;
     char buffer[MAX_BUFFER_SIZE];
+    struct timeval timeout = {5, 0};
+    if (setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        perror("Could not set socket timeout");
+        return ERR;
+    }
     FILE* file = fopen(filepath, "wb");
     if (!file) {
         perror("Could not open file to write");
         return ERR;
     }
-    while ((bytes_read = recv(client_fd, buffer, MAX_BUFFER_SIZE,0)) > 0) {
-        if (check_end_signal(buffer,bytes_read)){
-            if (bytes_read-LEN_END>0){
-                fwrite(buffer,1,bytes_read-LEN_END,file);
-                printf("Wrote %ld bytes to file\n", bytes_read-LEN_END);
+    int attempt=0;
+    while (attempt<3) {
+        bytes_read = recv(client_fd, buffer, MAX_BUFFER_SIZE, 0);
+        if (bytes_read > 0) {
+            // Check for end signal in the data
+            if (check_end_signal(buffer, bytes_read)) {
+                if (bytes_read - LEN_END > 0) {
+                    fwrite(buffer, 1, bytes_read - LEN_END, file);
+                    printf("Wrote %ld bytes to file\n", bytes_read - LEN_END);
+                }
+                printf("Received end of transmission signal\n");
+                send(client_fd,ACK,strlen(ACK),0);
+                break;
             }
-            printf("Received end of transmission signal\n");
+            // Write data to the file
+            size_t bytes_written = fwrite(buffer, 1, bytes_read, file);
+            if (bytes_written != bytes_read) {
+                perror("Error writing to file");
+                break;
+            }
+            printf("Wrote %ld bytes to file\n", bytes_read);
+        } else if (bytes_read == 0) {
+            // Client has closed the connection
+            printf("Client closed the connection\n");
+            close(client_fd);
             break;
+        } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            // Handle timeout
+            printf("Timeout occurred, no data received\n");
+            send(client_fd,NACK,strlen(NACK),0);
+            attempt++;
+        } else {
+            // Handle other errors
+            perror("recv failed");
+            send(client_fd,NACK,strlen(NACK),0);
+            attempt++;
         }
-        size_t bytes_written = fwrite(buffer, 1, bytes_read, file);
-        if (bytes_written != bytes_read) {
-            perror("Error writing to file");
-            break;
-        }
-        printf("Wrote %ld bytes to file\n", bytes_read); // Débogage
     }
     send(client_fd,ACK,strlen(ACK),0);
     fclose(file);

@@ -112,8 +112,8 @@ def send_file(filepath, client_socket):
             client_socket.sendall(END.encode())
             resp=client_socket.recv(MAX_BUFFER_SIZE).decode()
             if resp == "NACK":
-                print("Upload did not work properly")
-                return False
+                attempt+=1
+                continue
             print(f"File '{filepath}' sent successfully.")
             return True
         except socket.timeout:
@@ -126,10 +126,10 @@ def send_file(filepath, client_socket):
     return False
 
 def send_directory(dir_path,client_socket):
-    ack=False
     attempt=0
+    resp="NACK"
     client_socket.settimeout(10)
-    while not ack and attempt < 3:
+    while resp=="NACK" and attempt < 3:
         try :
             if send_upload_type(f"dir {dir_path}",client_socket) is False:
                 return
@@ -144,7 +144,6 @@ def send_directory(dir_path,client_socket):
                     print(f"{file} successfully uploaded")
             client_socket.sendall(END.encode())
             resp=client_socket.recv(1024).decode()
-            ack=resp=="ACK"
         except socket.timeout :
             print("Timeout")
             attempt+=1
@@ -215,7 +214,7 @@ def handle_llist(tokens, _):
     for file in list:
         print(file)
 
-def handle_lmkdir(tokens):
+def handle_lmkdir(tokens, _):
     if not check_command_validity(tokens,2):
         return
     path=tokens[1].lower()
@@ -227,7 +226,7 @@ def handle_lmkdir(tokens):
     except FileNotFoundError:
         print(f"{path} is incorrect")
 
-def handle_lpwd(tokens):
+def handle_lpwd(tokens, _):
     if not check_command_validity(tokens,1):
         return
     print(os.getcwd())
