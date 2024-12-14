@@ -135,6 +135,7 @@ int write_file(int client_fd,char *filepath){
             printf("Timeout occurred, no data received\n");
             send(client_fd,NACK,strlen(NACK),0);
             attempt++;
+            continue;
         }
 
 
@@ -154,7 +155,6 @@ int write_file(int client_fd,char *filepath){
         }
         printf("Wrote %ld bytes to file\n", bytes_read);
     }
-    send(client_fd,ACK,strlen(ACK),0);
     fclose(file);
     return 1;
 }
@@ -166,8 +166,8 @@ int write_directory(int client_fd,char *dir_path){
     if(stat(dir_path,&st)==-1){
         mkdir(dir_path, 0777);
     }
-    char *newpath=calloc(1024,sizeof(char));
-    char *filedir=calloc(1024,sizeof(char));
+    char *newpath=calloc(2048,sizeof(char));
+    char *filedir=calloc(2048,sizeof(char));
     struct timeval timeout={5,0};
     setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     int attempt=0;
@@ -199,12 +199,12 @@ int write_directory(int client_fd,char *dir_path){
             return ERR;
         }
 
-        memset(newpath, 0, 1024);
-        memset(filedir, 0, 1024);
+        memset(newpath, 0, 2048);
+        memset(filedir, 0, 2048);
 
         if (dir == 1) {
             char *path = strtok(buffer + 4, " \n");
-            snprintf(newpath, 1024, "%s%s", STORAGE_DIR, path);
+            snprintf(newpath, 2048, "%s/%s", STORAGE_DIR, path);
             int res = write_directory(client_fd, newpath);
             if (res == ERR) {
                 perror("Failed to download directory :");
@@ -214,7 +214,7 @@ int write_directory(int client_fd,char *dir_path){
             }
         } else {
             char *path = strtok(buffer + 4, " \n");
-            snprintf(newpath, 1024, "%s%s", STORAGE_DIR, path);
+            snprintf(newpath, 2048, "%s/%s", STORAGE_DIR, path);
             write_file(client_fd, newpath);
         }
 
@@ -259,8 +259,8 @@ void receive_upload(int client_fd, const char* path) {
         close(client_fd);
         return;
     }
-    char newpath[1024];
-    snprintf(newpath, sizeof(newpath), "%s%s", client->current_dir , path);
+    char newpath[2048];
+    snprintf(newpath, sizeof(newpath), "%s/%s", client->current_dir , path);
     printf("Receiving file at path: %s\n", newpath); // Débogage
     if (!dir){
         write_file(client_fd,newpath);
@@ -338,14 +338,27 @@ void on_udp_broadcast(evutil_socket_t fd, short events, void* arg) {
 
     server->buff.buffer[recv_len] = '\0';
     printf("Received broadcast message: %s\n", server->buff.buffer);
-
-    char response[1024];
-    snprintf(response, sizeof(response), "%s:%d", inet_ntoa(server->serv_addr.sin_addr), ntohs(server->serv_addr.sin_port));
-
-    if (sendto(fd, response, strlen(response), 0, (struct sockaddr*)&client_addr, addr_len) < 0) {
-        perror("Error sending UDP response");
-    } else {
-        printf("Sent discovery response: %s\n", response);
+    if (strncmp(server->buff.buffer,"DISCOVER_SERVER",16)==0){
+        char response[1024];
+        snprintf(response, sizeof(response), "%s:%d", inet_ntoa(server->serv_addr.sin_addr), ntohs(server->serv_addr.sin_port));
+        if (sendto(fd, response, strlen(response), 0, (struct sockaddr*)&client_addr, addr_len) < 0) {
+            perror("Error sending UDP response");
+        } else {
+            printf("Sent discovery response: %s\n", response);
+        }
+    }
+    else if (strncmp(server->buff.buffer,"FILE_DISCOVER_SERVER",20)==0){
+        char* filename = strtok(server->buff.buffer + 21, " \n");
+        int bytes=look_for_file(filename,STORAGE_DIR);
+        if (bytes>0){
+            char response[1024];
+            snprintf(response, sizeof(response), "%s:%d", inet_ntoa(server->serv_addr.sin_addr), ntohs(server->serv_addr.sin_port));
+            if (sendto(fd, response, strlen(response), 0, (struct sockaddr*)&client_addr, addr_len) < 0) {
+                perror("Error sending UDP response");
+            } else {
+                printf("Sent discovery response: %s\n", response);
+            }
+        }
     }
 }
 

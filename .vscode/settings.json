@@ -10,7 +10,8 @@
     "event.h": "c",
     "constants.h": "c",
     "unistd.h": "c",
-    "stdint.h": "c"
+    "stdint.h": "c",
+    "utility.h": "c"
   },
   "C_Cpp_Runner.msvcBatchPath": "",
   "C_Cpp_Runner.cCompilerPath": "clang",
