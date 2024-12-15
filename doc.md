@@ -18,7 +18,7 @@
 
 ---
 
-## [Code Client (Python)]
+## Code Client (Python)
 
 ### Fonctionnalités
 
@@ -241,7 +241,7 @@ python script_name.py
 
 ---
 
-## [Code Serveur (C)]
+## Code Serveur (C)
 
 ### Fonctionnalités
 
