@@ -129,20 +129,28 @@ def handle_list(tokens, client_socket):
     if not check_command_validity(tokens, 1):
         return
     client_socket.settimeout(5)
-    try:
-        client_socket.sendall("list".encode())
-        print("Files on server:")
-        while True:
-            data = client_socket.recv(MAX_BUFFER_SIZE).decode().strip()
-            if compare_bits(data):
-                client_socket.sendall(b"ACK")
-                print(data[:-3])
-                return
-            print(data)
-    except socket.timeout:
-        print("[-] Timeout occurred while receiving data")
-    except Exception as e:
-        print(f"[-] Error receiving list: {e}")
+    attempt=0
+    while attempt<3:
+        try:
+            client_socket.sendall("list".encode())
+            print("Files on server:")
+            while True:
+                data = client_socket.recv(MAX_BUFFER_SIZE).decode().strip()
+                if data=="NACK":
+                    attempt+=1
+                    print("Server responded with NACK, resending request")
+                    continue
+                if compare_bits(data):
+                    client_socket.sendall(b"ACK")
+                    print(data[:-3])
+                    return
+                print(data)
+        except socket.timeout:
+            print("[-] Timeout occurred while receiving data")
+            attempt+=1
+        except Exception as e:
+            print(f"[-] Error receiving list: {e}")
+            attempt+=1
 
 def handle_mkdir(tokens, sock):
     """
