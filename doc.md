@@ -355,8 +355,8 @@ sudo ./server <port> <interface>
 2. **Validation** :
    - Le serveur reçoit la requête et la valide.
 3. **Échange de données** :
-   - Le côté upload commence toujours pas préciser le type par une requête `dir` ou `file`, cette requête est répété à chaque fois lors d'échanges de répertoires.
+   - Le côté upload commence toujours par préciser le type de données avec une requête `dir` ou `file`, cette requête est répété à chaque fois nouvelles données lors d'échanges de répertoires.
    - Le côté download valide le reçu par `ACK`.
-   - Le côté upload envoie les données et termine par un `END` à chaque fichier et répertoire envoyé, puis attend une réponse du client.
+   - Le côté upload envoie les données du fichier ou du répertoire, puis termine par un `END` et attend une réponse du client.
    - Le côté download récupère les données, puis envoie `ACK` lorsque `END` est reçu.
 
