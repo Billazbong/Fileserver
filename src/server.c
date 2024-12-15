@@ -672,13 +672,31 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
             printf("[-] No path provided for cd\n");
         }
     } else if (strncmp(server->buff.buffer, "pwd", strlen("pwd")) == 0) {
-        char* path = strtok(server->buff.buffer + strlen("pwd") + 1, " \n");
-        if (path) {
             print_working_dir(fd);
-        } else {
-            printf("[-] No path provided for pwd\n");
-        }
-    } 
+             
+    } else if (strncmp(server->buff.buffer, "list", strlen("list")) == 0) {
+        client_session* sess = get_client_session_by_socket(fd);
+        if (sess) {
+            DIR* dir = opendir(sess->current_dir);
+            if (!dir) {
+                perror("[-] Could not open current directory");
+                send(fd, "NACK", strlen("NACK"), 0);
+                return;
+            }
+            struct dirent* entry;
+            char buffer[MAX_BUFFER_SIZE] = {0};
+            while ((entry = readdir(dir)) != NULL) {
+                if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                    continue; // Ignore les répertoires spéciaux
+                snprintf(buffer, sizeof(buffer), "%s\n", entry->d_name);
+                send(fd, buffer, strlen(buffer), 0);
+            }
+            closedir(dir);
+            send(fd, "END", strlen("END"), 0); // Signal de fin
+            char boufeur [MAX_BUFFER_SIZE];
+            recv(fd, boufeur, MAX_BUFFER_SIZE, 0);
+            }
+    }
 }
 
 /**
