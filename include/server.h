@@ -41,6 +41,11 @@ typedef struct {
     client_session clients[MAX_CLIENT];
 } Server;
 
+#define END_SIGNAL "END"      // Signal pour indiquer la fin de la transmission
+#define LEN_END 3             // Longueur du signal "END"
+#define NACK "NACK"           // Signal d'erreur pour la non-réception
+#define ACK "ACK"             // Signal de confirmation de réception
+
 // Function prototypes
 void setup_storage_dir();
 void init(Server* server, int port, const char * interface);

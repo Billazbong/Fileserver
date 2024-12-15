@@ -1,10 +1,4 @@
 #include "../include/server.h"
-#define END_SIGNAL "END"      // Signal pour indiquer la fin de la transmission
-#define LEN_END 3             // Longueur du signal "END"
-#define NACK "NACK"           // Signal d'erreur pour la non-réception
-#define ACK "ACK"             // Signal de confirmation de réception
-
-
 
 int num_clients = 0; //DO NOT MODIFY THAT PLEASE IT WILL BREAK EVERYTHING
 client_session clients[MAX_CLIENT];
