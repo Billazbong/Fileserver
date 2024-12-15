@@ -17,8 +17,8 @@
 - [Dépendances](#dépendances-1)
 
 ### [Protocole](#protocole)
-- [Connexion client/serveur](#connexion-client/server)
-
+- [Connexion client/serveur](#connexion-client-server)
+- [Échange de données](#échange-de-données)
 ---
 
 ## Code Client (Python)
@@ -348,4 +348,15 @@ sudo ./server <port> <interface>
    - Le client envoie la requête de connexion au serveur.
    - Le serveur accepte la requête du client.
 ---
+
+### Échange de données
+1. **Requête client** :
+   - Le client envoie une requête `download <file>/<directory` ou `upload <file>/<directory>` depuis le socket TCP.
+2. **Validation** :
+   - Le serveur reçoit la requête et la valide.
+3. **Échange de données** :
+   - Le côté upload commence toujours pas préciser le type par une requête `dir` ou `file`, cette requête est répété à chaque fois lors d'échanges de répertoires.
+   - Le côté download valide le reçu par `ACK`.
+   - Le côté upload envoie les données et termine par un `END` à chaque fichier et répertoire envoyé, puis attend une réponse du client.
+   - Le côté download récupère les données, puis envoie `ACK` lorsque `END` est reçu.
 
