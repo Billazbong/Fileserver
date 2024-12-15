@@ -20,7 +20,7 @@ int is_dir(char *buffer,int client_fd){
         printf("File received\n");
     }
     else {
-        send(client_fd, "NACK", strlen("NACK"), 0);
+        send(client_fd, NACK, strlen(NACK), 0);
         is_dir=-1;
         printf("Could not recognize request");
     }
@@ -53,10 +53,9 @@ int get_file_size(char *filename){
 
 int directory_exists(const char* directory) {
     struct stat dirStat;
-    return (!(stat(directory, &dirStat) != 0 || !S_ISDIR(dirStat.st_mode))); // Does not exist or not a directory
+    return (!(stat(directory, &dirStat) != 0 || !S_ISDIR(dirStat.st_mode)));
 }
 
-/* Look if a file exists in the server and return the number of bytes*/
 int look_for_file(char *filename,char *path){
     struct dirent *entry;
     struct stat st;

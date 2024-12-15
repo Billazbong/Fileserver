@@ -1,16 +1,40 @@
+/**
+ * @file server.c
+ * @brief Server implementation file.
+ *
+ * This file implements the server setup, event loop handling, and
+ * client request management including file and directory handling.
+ *
+ * It depends on "../include/server.h" for type definitions and function prototypes.
+ */
+
 #include "../include/server.h"
 
-int num_clients = 0; //DO NOT MODIFY THAT PLEASE IT WILL BREAK EVERYTHING
-client_session clients[MAX_CLIENT];
 /**
-    * @brief Sets up the storage directory.
-    * Checks if the storage directory exists. 
-    * If it doesn't exist, creates the directory with permissions set to 0700.
-    * If the directory already exists, prints a message indicating its existence.
-    *
-    * @param None
-    * @return None
-*/
+ * @var int num_clients
+ * @brief The number of currently connected clients.
+ *
+ * This variable tracks how many clients are currently connected to the server.
+ * @warning DO NOT MODIFY THIS VARIABLE, IT WILL BREAK EVERYTHING.
+ */
+int num_clients = 0; //DO NOT MODIFY THAT PLEASE IT WILL BREAK EVERYTHING
+
+/**
+ * @var client_session clients[MAX_CLIENT]
+ * @brief Array of client sessions.
+ *
+ * This array holds the sessions for up to MAX_CLIENT clients.
+ */
+client_session clients[MAX_CLIENT];
+
+/**
+ * @brief Sets up the storage directory.
+ *
+ * Checks if the storage directory exists. If it doesn't exist, creates the directory
+ * with permissions set to 0700. If the directory already exists, prints a message indicating its existence.
+ *
+ * @return None
+ */
 void setup_storage_dir() {
     struct stat st = {0};
     if (stat(STORAGE_DIR, &st) != ERR) {
@@ -22,15 +46,17 @@ void setup_storage_dir() {
 }
 
 /**
-   * @brief Initializes the server.
-   * 
-   * This function sets up the server's storage directory, 
-   * creates a socket for the server, and initializes the 
-   * server structure.
-   *
-   * @param server A pointer to the Server structure to be initialized.
-   * @param port The port number the server will listen on. 
-*/
+ * @brief Initializes the server.
+ *
+ * This function sets up the server's storage directory,
+ * creates a socket for the server (both TCP and UDP), and initializes
+ * the server structure with given interface and port.
+ *
+ * @param server A pointer to the Server structure to be initialized.
+ * @param port The port number the server will listen on.
+ * @param interface The network interface name the server binds to.
+ * @return None
+ */
 void init(Server* server, int port, const char* interface) {
     printf("Setting up the storage directory...\n");
     setup_storage_dir();
@@ -82,6 +108,12 @@ void init(Server* server, int port, const char* interface) {
     printf("UDP socket bound for broadcast discovery on port %d\n", BROADCAST_PORT);
 }
 
+/**
+ * @brief Retrieve a client session based on the socket descriptor.
+ *
+ * @param socket The socket descriptor of the client.
+ * @return A pointer to the client_session or NULL if not found.
+ */
 client_session* get_client_session_by_socket(int socket) {
     printf("List of clients : \n");
     for (int i = 0; i < num_clients; i++) {
@@ -93,6 +125,16 @@ client_session* get_client_session_by_socket(int socket) {
     return NULL;  
 }
 
+/**
+ * @brief Callback function triggered upon a new client connection.
+ *
+ * Accepts a new client connection, initializes a client_session for it, and adds
+ * a new event to read data from this client.
+ *
+ * @param fd The listening socket file descriptor.
+ * @param events The event flags.
+ * @param arg A pointer to the Server structure.
+ */
 void on_accept(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;
     struct sockaddr_in client_addr;
@@ -111,6 +153,16 @@ void on_accept(evutil_socket_t fd, short events, void* arg) {
     event_add(client_event, NULL);
 }
 
+/**
+ * @brief Writes data received from the client into a file.
+ *
+ * This function receives data chunks from the client until it encounters
+ * an end signal or times out. It then writes those chunks into the specified file.
+ *
+ * @param client_fd The client's file descriptor.
+ * @param filepath The path to the file on the server where data should be written.
+ * @return int Returns 1 on success or ERR on failure.
+ */
 int write_file(int client_fd,char *filepath){
     size_t bytes_read;
     char buffer[MAX_BUFFER_SIZE];
@@ -161,6 +213,16 @@ int write_file(int client_fd,char *filepath){
     return 1;
 }
 
+/**
+ * @brief Recursively receives directories and their contents from the client and writes them to the server storage.
+ *
+ * If the specified directory does not exist, it creates it. For each file or directory
+ * received, it writes the file or recursively processes the sub-directory.
+ *
+ * @param client_fd The client's file descriptor.
+ * @param dir_path The directory path on the server where data should be written.
+ * @return int Returns 1 on success or ERR on failure.
+ */
 int write_directory(int client_fd,char *dir_path){
     struct stat st ={0};
     size_t bytes_read=0;
@@ -227,6 +289,16 @@ int write_directory(int client_fd,char *dir_path){
     return 1;
 }
 
+/**
+ * @brief Receive uploaded files or directories from the client.
+ *
+ * Determines if the client is sending a file or a directory and then
+ * receives it accordingly using write_file or write_directory.
+ *
+ * @param client_fd The client's file descriptor.
+ * @param path The path where the uploaded files/directories should be stored.
+ * @return None
+ */
 void receive_upload(int client_fd, const char* path) {
     char buffer[MAX_BUFFER_SIZE];
     size_t bytes_read;
@@ -263,16 +335,25 @@ void receive_upload(int client_fd, const char* path) {
     }
     char newpath[2048];
     snprintf(newpath, sizeof(newpath), "%s/%s", client->current_dir , path);
-    printf("Receiving file at path: %s\n", newpath); // Débogage
+    printf("Receiving file at path: %s\n", newpath); 
     if (!dir){
         write_file(client_fd,newpath);
     }
     else {
         write_directory(client_fd,newpath);
     }
-    
 }
 
+/**
+ * @brief Sends a file from the server to the client.
+ *
+ * Reads the file from the given filename and sends it to the client in chunks.
+ * It also handles retransmission attempts if necessary.
+ *
+ * @param client_fd The client's file descriptor.
+ * @param filename The path to the file on the server to be sent.
+ * @return None
+ */
 void send_file_to_client(int client_fd, const char* filename) {
     int attempt=0;
     struct timeval timeout={10,0};
@@ -281,7 +362,7 @@ void send_file_to_client(int client_fd, const char* filename) {
         FILE* file = fopen(filename, "rb");
         if (!file) {
             perror("Could not open file to read");
-            send(client_fd, NACK, strlen(NACK), 0); // Envoi d'un signal d'erreur
+            send(client_fd, NACK, strlen(NACK), 0);
             return;
         }
         char buffer[MAX_BUFFER_SIZE];
@@ -296,18 +377,19 @@ void send_file_to_client(int client_fd, const char* filename) {
             printf("[+] Sent %zu bytes to client\n", bytes_read);
         }
 
-        // Signal de fin de transmission après envoi du fichier
         send(client_fd, END, LEN_END, 0);
         recv(client_fd,buffer,MAX_BUFFER_SIZE,0);
         if (errno==EWOULDBLOCK || errno==EAGAIN){
             errno = 0;
             printf("Timeout occurred, no data received\n");
             attempt++;
+            fclose(file);
             continue;
         }
         if (strncmp(buffer,NACK,strlen(NACK))==0){
             printf("Client did not receive data correctly\n");
             attempt++;
+            fclose(file);
             continue;
         }
         printf("[+] File '%s' sent successfully.\n", filename);
@@ -316,6 +398,16 @@ void send_file_to_client(int client_fd, const char* filename) {
     }
 }
 
+/**
+ * @brief Sends a directory and its contents (files and subdirectories) to the client.
+ *
+ * Iterates through the directory, sending information about files and subdirectories.
+ * Uses send_file_to_client for files and send_directory recursively for directories.
+ *
+ * @param client_fd The client's file descriptor.
+ * @param dir_path The path of the directory on the server to send.
+ * @return None
+ */
 void send_directory(int client_fd, const char* dir_path) {
     DIR* dir = opendir(dir_path);
     if (!dir) {
@@ -334,7 +426,6 @@ void send_directory(int client_fd, const char* dir_path) {
         snprintf(new_path, sizeof(new_path), "%s/%s", dir_path, entry->d_name);
 
         if (entry->d_type == DT_DIR) {
-            // Envoi d'un signal de début de répertoire
             char msg[1024];
             snprintf(msg, sizeof(msg), "dir %s", entry->d_name);
             send(client_fd, msg, strlen(msg), 0);
@@ -347,7 +438,6 @@ void send_directory(int client_fd, const char* dir_path) {
                 printf("Directory %s cannot be upload\n",entry->d_name);
             }
         } else {
-            // Envoi d'un fichier dans le répertoire
             char msg[1024];
             snprintf(msg, sizeof(msg), "file %s", entry->d_name);
             send(client_fd, msg, strlen(msg), 0);
@@ -362,7 +452,6 @@ void send_directory(int client_fd, const char* dir_path) {
         }
     }
 
-    // Signal de fin de répertoire
     send(client_fd, END, LEN_END, 0);
     char resp[MAX_BUFFER_SIZE];
     recv(client_fd, resp,MAX_BUFFER_SIZE,0);
@@ -373,9 +462,18 @@ void send_directory(int client_fd, const char* dir_path) {
         printf("[-] Directroy '%s' could not be uploaded",dir_path);
     }
     closedir(dir);
-    
 }
 
+/**
+ * @brief Handles incoming UDP broadcast messages and responds accordingly.
+ *
+ * If the message is a DISCOVER_SERVER request, the server responds with its address and port.
+ * Also handles FILE_DISCOVER_SERVER requests by checking for file existence.
+ *
+ * @param fd The UDP socket file descriptor.
+ * @param events The event flags.
+ * @param arg A pointer to the Server structure.
+ */
 void on_udp_broadcast(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;
     struct sockaddr_in client_addr;
@@ -413,6 +511,15 @@ void on_udp_broadcast(evutil_socket_t fd, short events, void* arg) {
     }
 }
 
+/**
+ * @brief Starts the event loop for the server.
+ *
+ * Registers the TCP and UDP event callbacks and then dispatches the event loop,
+ * which will process client connections, incoming data, and UDP broadcasts.
+ *
+ * @param server A pointer to the Server structure.
+ * @return None
+ */
 void start_event_loop(Server* server) {
     server->base = event_base_new();
     event_add(event_new(server->base, server->tcp_fd, EV_READ | EV_PERSIST, on_accept, server), NULL);
@@ -421,6 +528,16 @@ void start_event_loop(Server* server) {
     event_base_dispatch(server->base);
 }
 
+/**
+ * @brief Changes the current working directory of the client's session.
+ *
+ * Validates the requested directory to ensure it doesn't escape the server's storage directory.
+ * Updates the client's current directory on success.
+ *
+ * @param client_fd The client's file descriptor.
+ * @param newDir The requested new directory path (relative or absolute).
+ * @return None
+ */
 void change_directory(int client_fd, const char *newDir) {
     char buffer[PATH_MAX];
     char absPath[PATH_MAX];
@@ -477,6 +594,14 @@ void change_directory(int client_fd, const char *newDir) {
     printf("[DEBUG] ACK sent to client.\n");
 }
 
+/**
+ * @brief Prints the current working directory of the client's session.
+ *
+ * Sends the client's current working directory path back to the client.
+ *
+ * @param client_fd The client's file descriptor.
+ * @return None
+ */
 void print_working_dir(int client_fd) {
     client_session* sess = get_client_session_by_socket(client_fd);
     if (sess == NULL) {
@@ -487,6 +612,16 @@ void print_working_dir(int client_fd) {
     send(client_fd, sess->current_dir, strlen(sess->current_dir),0);
 }
 
+/**
+ * @brief Callback function triggered when data is available from the client.
+ *
+ * Parses and processes commands sent by the client such as upload, download, cd, and pwd.
+ *
+ * @param fd The client's file descriptor.
+ * @param events The event flags.
+ * @param arg A pointer to the Server structure.
+ * @return None
+ */
 void on_client_data(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;
     int res = read(fd, server->buff.buffer, MAX_BUFFER_SIZE);
@@ -546,6 +681,15 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
     } 
 }
 
+/**
+ * @brief The main entry point of the program.
+ *
+ * Initializes the server with given arguments and starts the event loop.
+ *
+ * @param argc The argument count.
+ * @param argv The argument vector. Expected usage: ./program <port> <interface>
+ * @return int Returns 1337 on success, and may exit earlier on errors.
+ */
 int main(int argc, char** argv) {
     if (argc != 3) printf("[-] Usage : %s <port> <interface>", argv[0]), exit(2);
 
