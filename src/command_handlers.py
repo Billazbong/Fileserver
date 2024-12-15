@@ -57,24 +57,64 @@ def handle_pwd(tokens):
     if check_command_validity(tokens,1):
         hit_server(tokens)
 
-def handle_download(tokens, client_socket):
-    if check_command_validity(tokens, 2):
-        filename = tokens[1]
+def compare_bits(data):
+    return data[-3:] == END
+    
+
+def receive_file(sock, save_path):
+    """ Reçoit un fichier et l'enregistre à save_path """
+    sock.settimeout(5)
+    attempt=0
+    while attempt<3:
         try:
-            # Envoyer la requête de téléchargement au serveur
-            client_socket.sendall(f"download {filename}".encode())
-            
-            # Recevoir le fichier du serveur
-            with open(filename, "wb") as file:
+            with open(save_path, 'wb') as file:
+                print(f"[*] Receiving file: {save_path}")
                 while True:
-                    data = client_socket.recv(1024)
-                    if not data:
-                        break
-                    file.write(data)
-                    print(f"Received {len(data)} bytes")
-            print(f"File '{filename}' downloaded successfully.")
+                    data = sock.recv(MAX_BUFFER_SIZE).decode().strip()
+                    if compare_bits(data):
+                        file.write(data[:-3].encode())
+                        sock.sendall(b'ACK')
+                        print(f"Successfully downloaded {save_path}")
+                        return True
+                    file.write(data.encode())
+        except socket.timeout:
+            attempt+=1
+            print("Timeout occured while waiting for data")
+            sock.sendall(b'NACK')
         except Exception as e:
-            print(f"Error during download: {e}")
+            print(f"Error while creating file: {e}")
+            attempt+=1
+            if attempt <3 : sock.sendall(b'NACK')
+    return False
+        
+
+
+def receive_directory(sock, base_path):
+    """ Reçoit un répertoire et son contenu récursivement """
+    print(f"[*] Receiving directory: {base_path}")
+    os.makedirs(base_path, exist_ok=True)
+
+    while True:
+        try:
+            data = sock.recv(MAX_BUFFER_SIZE).decode().strip()
+            if compare_bits(data):
+                sock.sendall(b'ACK')
+                return True
+            print(data)
+            if data.startswith("file"):
+                sock.sendall(b'ACK')
+                _, filename = data.split(" ", 1)
+                file_path = os.path.join(base_path, filename.strip())
+                receive_file(sock, file_path)
+            elif data.startswith("dir"):
+                sock.sendall(b'ACK')
+                _, dirname = data.split(" ", 1)
+                new_dir_path = os.path.join(base_path, dirname.strip())
+                receive_directory(sock, new_dir_path)
+        except Exception as e:
+            print(f"Error while trying to download : {e}")
+            sock.sendall(b"NACK")
+            return
 
 def send_upload_type(message,client_socket):
     client_socket.settimeout(10)
@@ -184,6 +224,36 @@ def handle_upload(tokens, client_socket):
             except Exception as e:
                 print(f"Error during upload: {e}")
         return False
+
+
+def handle_download(args, sock):
+    """
+    Gère la commande 'download' en appelant les fonctions appropriées pour
+    recevoir un fichier ou un répertoire.
+    
+    Args:
+        sock : La socket connectée au serveur.
+        args : Les arguments de la commande (chemin distant, chemin local).
+    """
+    attempt = 0
+    response = ''
+
+    if not check_command_validity(args, 2):
+        return
+
+    command = f"download {args[1]}"
+    while attempt < 3 and response != 'file' and response != 'dir':
+        sock.sendall(command.encode())  # Envoi de la commande au serveur
+
+        response = sock.recv(MAX_BUFFER_SIZE).decode()
+        if response.strip() == "NACK":
+            attempt += 1
+            print("[-] Server: File or directory not found.")
+    
+    if response == 'file':
+        receive_file(sock, args[1])
+    elif response == 'dir':
+        receive_directory(sock,args[1])
 
 
 def check_command_validity(tokens:str, expected_length:int) -> bool:

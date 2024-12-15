@@ -1,4 +1,10 @@
 #include "../include/server.h"
+#define END_SIGNAL "END"      // Signal pour indiquer la fin de la transmission
+#define LEN_END 3             // Longueur du signal "END"
+#define NACK "NACK"           // Signal d'erreur pour la non-réception
+#define ACK "ACK"             // Signal de confirmation de réception
+
+
 
 int num_clients=0; //DO NOT MODIFY THAT PLEASE IT WILL BREAK EVERYTHING
 client_session clients[MAX_CLIENT];
@@ -271,27 +277,109 @@ void receive_upload(int client_fd, const char* path) {
     
 }
 
-void send_file_to_client(int client_fd, const char* filename,void* arg) {
-    Server* server = (Server*)arg;
-    char filepath[1024];
-    snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, filename);
-    FILE* file = fopen(filepath, "rb");
-    if (!file) {
-        perror("Could not open file to read");
+void send_file_to_client(int client_fd, const char* filename) {
+    int attempt=0;
+    struct timeval timeout={10,0};
+    setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    while (attempt<3){
+        FILE* file = fopen(filename, "rb");
+        if (!file) {
+            perror("Could not open file to read");
+            send(client_fd, NACK, strlen(NACK), 0); // Envoi d'un signal d'erreur
+            return;
+        }
+        char buffer[MAX_BUFFER_SIZE];
+        size_t bytes_read;
+
+        printf("[*] Sending file: %s\n", filename);
+        while ((bytes_read = fread(buffer, 1, MAX_BUFFER_SIZE, file)) > 0) {
+            if (send(client_fd, buffer, bytes_read, 0) < 0) {
+                perror("Error sending file");
+                break;
+            }
+            printf("[+] Sent %zu bytes to client\n", bytes_read);
+        }
+
+        // Signal de fin de transmission après envoi du fichier
+        send(client_fd, END, LEN_END, 0);
+        recv(client_fd,buffer,MAX_BUFFER_SIZE,0);
+        if (errno==EWOULDBLOCK || errno==EAGAIN){
+            errno = 0;
+            printf("Timeout occurred, no data received\n");
+            attempt++;
+            continue;
+        }
+        if (strncmp(buffer,NACK,strlen(NACK))==0){
+            printf("Client did not receive data correctly\n");
+            attempt++;
+            continue;
+        }
+        printf("[+] File '%s' sent successfully.\n", filename);
+        fclose(file);
         return;
     }
-    int bytes_read;
-    while ((bytes_read = fread(server->buff.buffer, 1, MAX_BUFFER_SIZE, file)) > 0) {
-        if (write(client_fd, server->buff.buffer, bytes_read) < 0) {
-            perror("Error sending file to client");
-            break;
-        }
-        printf("Sent %d bytes to client\n", bytes_read); // Débogage
+}
+
+void send_directory(int client_fd, const char* dir_path) {
+    DIR* dir = opendir(dir_path);
+    if (!dir) {
+        perror("Could not open directory");
+        send(client_fd, NACK, strlen(NACK), 0);
+        return;
     }
 
-    fclose(file);
-    printf("File '%s' sent to client.\n", filename);
+    struct dirent* entry;
+    char new_path[1024];
+
+    printf("[*] Sending directory: %s\n", dir_path);
+    while ((entry = readdir(dir)) != NULL) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
+
+        snprintf(new_path, sizeof(new_path), "%s/%s", dir_path, entry->d_name);
+
+        if (entry->d_type == DT_DIR) {
+            // Envoi d'un signal de début de répertoire
+            char msg[1024];
+            snprintf(msg, sizeof(msg), "dir %s", entry->d_name);
+            send(client_fd, msg, strlen(msg), 0);
+            char buffer[MAX_BUFFER_SIZE];
+            recv(client_fd,buffer,MAX_BUFFER_SIZE,0);
+            if (strncmp(buffer,ACK,strlen(ACK))==0){
+                send_directory(client_fd,new_path);
+            }
+            else {
+                printf("Directory %s cannot be upload\n",entry->d_name);
+            }
+        } else {
+            // Envoi d'un fichier dans le répertoire
+            char msg[1024];
+            snprintf(msg, sizeof(msg), "file %s", entry->d_name);
+            send(client_fd, msg, strlen(msg), 0);
+            char buffer[MAX_BUFFER_SIZE];
+            recv(client_fd,buffer,MAX_BUFFER_SIZE,0);
+            if (strncmp(buffer,ACK,strlen(ACK))==0){
+                send_file_to_client(client_fd,new_path);
+            }
+            else {
+                printf("File %s cannot be upload\n",entry->d_name);
+            }
+        }
+    }
+
+    // Signal de fin de répertoire
+    send(client_fd, END, LEN_END, 0);
+    char resp[MAX_BUFFER_SIZE];
+    recv(client_fd, resp,MAX_BUFFER_SIZE,0);
+    if (strncmp(resp,ACK,strlen(ACK))==0){
+        printf("[+] Directory '%s' sent successfully.\n", dir_path);
+    }
+    else {
+        printf("[-] Directroy '%s' could not be uploaded",dir_path);
+    }
+    closedir(dir);
+    
 }
+
 
 void on_client_data(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;
@@ -315,12 +403,25 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
     } else if (strncmp(server->buff.buffer, "download", 8) == 0) {
         char* path = strtok(server->buff.buffer + 9, " \n");
         if (path) {
-            send_file_to_client(fd, path,server);
+            char fullpath[1024];
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", STORAGE_DIR, path);
+
+            int dir = check_download_request(fullpath);
+
+            if (dir == 0) {
+                send(fd, "file", strlen("file"), 0);
+                send_file_to_client(fd, fullpath);
+            } else if (dir == 1) {
+                send(fd, "dir", strlen("dir"), 0);
+                send_directory(fd, fullpath);
+            } else {
+                send(fd, NACK, strlen(NACK), 0);
+                printf("Invalid path for download: %s\n", path);
+            }
         } else {
             printf("No path provided for download\n");
+            send(fd, NACK, strlen(NACK), 0);
         }
-    } else {
-        write(fd, server->buff.buffer, res);
     }
 }
 

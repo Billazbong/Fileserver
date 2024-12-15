@@ -3,9 +3,16 @@ CFLAGS = -Iinclude -Wall -g
 LDFLAGS = -levent
 
 UNAME := $(shell uname)
-ifeq ($(UNAME), Darwin) 
-    CFLAGS += -I/opt/homebrew/include
-    LDFLAGS += -L/opt/homebrew/lib
+ARCH := $(shell uname -m)
+
+ifeq ($(UNAME), Darwin)
+    ifeq ($(ARCH), arm64)
+        CFLAGS += -I/opt/homebrew/include
+        LDFLAGS += -L/opt/homebrew/lib
+    else ifeq ($(ARCH), x86_64)
+        CFLAGS += -I/usr/local/include
+        LDFLAGS += -L/usr/local/lib
+    endif
 else ifeq ($(UNAME), Linux)
     CFLAGS += -I/usr/include
     LDFLAGS += -L/usr/lib

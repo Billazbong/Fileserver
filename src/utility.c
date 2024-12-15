@@ -10,21 +10,36 @@ int check_end_signal(char *buffer,int len){
 int is_dir(char *buffer,int client_fd){
     int is_dir;
     if (strncmp(buffer,"dir",3)==0){
+        send(client_fd, ACK, strlen(ACK), 0);
         is_dir=1;
         printf("Directory received\n");
-        send(client_fd,ACK,strlen(ACK),0);
     }
     else if (strncmp(buffer,"file",4)==0){
+        send(client_fd, ACK, strlen(ACK), 0);
         is_dir=0;
         printf("File received\n");
-        send(client_fd,ACK,strlen(ACK),0);
     }
     else {
+        send(client_fd, "NACK", strlen("NACK"), 0);
         is_dir=-1;
         printf("Could not recognize request");
-        send(client_fd,NACK,strlen(NACK),0);
     }
     return is_dir;
+}
+
+int check_download_request(char* path){
+    struct stat st;
+    if (stat(path, &st) == -1) {
+        perror("Could not find path");
+        return -1;
+    }
+    if (S_ISDIR(st.st_mode)){
+        return 1;
+    }
+    else if (S_ISREG(st.st_mode)){
+        return 0;
+    }
+    return -1;
 }
 
 int get_file_size(char *filename){
