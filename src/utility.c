@@ -4,7 +4,7 @@ int check_end_signal(char *buffer,int len){
     if (len<LEN_END){
         return 0;
     }
-    return strncmp(buffer+len-LEN_END,END,LEN_END)==0;
+    return strncmp(buffer+len-LEN_END, END, LEN_END)==0;
 }
 
 int is_dir(char *buffer,int client_fd){
@@ -49,6 +49,11 @@ int get_file_size(char *filename){
         return -1;
     }
     return st.st_size;
+}
+
+int directory_exists(const char* directory) {
+    struct stat dirStat;
+    return (!(stat(directory, &dirStat) != 0 || !S_ISDIR(dirStat.st_mode))); // Does not exist or not a directory
 }
 
 /* Look if a file exists in the server and return the number of bytes*/

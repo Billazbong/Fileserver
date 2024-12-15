@@ -16,3 +16,4 @@ int is_dir(char *buffer,int client_fd);
 int get_file_size(char *filename);
 int look_for_file(char *filename,char *path);
 int check_download_request(char* path);
+int directory_exists(const char* directory);

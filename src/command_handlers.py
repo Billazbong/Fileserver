@@ -19,9 +19,6 @@ commands = {
 MAX_BUFFER_SIZE=8192
 END="END"
 
-def hit_server(socket, tokens):
-    socket.sendall(" ".join(tokens))
-
 def handle_help(tokens):
     """Displays informations about commands"""
     if len(tokens) > 2:
@@ -40,10 +37,52 @@ def handle_help(tokens):
         else:
             print(f"Command '{command_to_desc}' not found")
 
+def handle_cd(tokens, client_socket):
+    if not check_command_validity(tokens,2):
+        return
+    client_socket.settimeout(1)
+    attempt = 0
+    while attempt<3:
+        try:
+            client_socket.sendall(f"cd {tokens[1]}".encode())
+            resp=client_socket.recv(MAX_BUFFER_SIZE).decode()
+            if resp.startswith("[-]"):
+                print(f"{resp}")
+                return False
+            elif resp=="ACK":
+                return True
+            else:
+                attempt +=1
+                print(f"",end="" if attempt<3 else "[-] Could not send message to server.")
+        except socket.timeout:
+            print(f"[-] Attempt {attempt + 1}: Timeout occurred while sending data")
+            attempt+=1
+        except Exception as e:
+            print(f"[-] Error while sending request: {e}")
+    return False
 
-def handle_cd(tokens):
-    if check_command_validity(tokens,2):
-        hit_server(tokens)
+def handle_pwd(tokens, client_socket):
+    if not check_command_validity(tokens,1):
+        return
+    client_socket.settimeout(1)
+    attempt = 0
+    while attempt<3:
+        try:
+            client_socket.sendall(f"pwd".encode())
+            resp=client_socket.recv(MAX_BUFFER_SIZE).decode()
+            if resp=="no_session":
+                attempt+=1
+                print("[!] Received error from server, resending the message." if attempt<3 else "[-] Could not send message to server.")
+                continue
+            else:
+                print(resp)
+                return True;
+        except socket.timeout:
+            print(f"[-] Attempt {attempt + 1}: Timeout occurred while sending data")
+            attempt+=1
+        except Exception as e:
+            print(f"[-] Error while sending request: {e}")
+    return False
 
 def handle_list(tokens):
     if check_command_validity(tokens,1):
@@ -53,19 +92,9 @@ def handle_mkdir(tokens):
     if check_command_validity(tokens,2):
         hit_server(tokens)
 
-def handle_pwd(tokens):
-    if check_command_validity(tokens,1):
-        hit_server(tokens)
-
-def compare_bits(data):
-    return data[-3:] == END
-    
-
-def receive_file(sock, save_path):
-    """ Reçoit un fichier et l'enregistre à save_path """
-    sock.settimeout(5)
-    attempt=0
-    while attempt<3:
+def handle_download(tokens, client_socket):
+    if check_command_validity(tokens, 2):
+        filename = tokens[1]
         try:
             with open(save_path, 'wb') as file:
                 print(f"[*] Receiving file: {save_path}")
@@ -192,7 +221,6 @@ def send_directory(dir_path,client_socket):
     if attempt==3:
         return False
     return True
-    
 
 
 def handle_upload(tokens, client_socket):

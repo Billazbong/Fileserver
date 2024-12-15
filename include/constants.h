@@ -13,3 +13,6 @@
 #define LEN_END 3
 
 #define MAX_BUFFER_SIZE 8192
+
+#define SEND_ERROR(client_fd, message) send(client_fd, message, strlen(message), 0)
+#define DIRECTORY_ERROR "[-] Directory doesn't exist or can't be accessed"

@@ -6,7 +6,7 @@
 
 
 
-int num_clients=0; //DO NOT MODIFY THAT PLEASE IT WILL BREAK EVERYTHING
+int num_clients = 0; //DO NOT MODIFY THAT PLEASE IT WILL BREAK EVERYTHING
 client_session clients[MAX_CLIENT];
 /**
     * @brief Sets up the storage directory.
@@ -89,7 +89,9 @@ void init(Server* server, int port, const char* interface) {
 }
 
 client_session* get_client_session_by_socket(int socket) {
+    printf("List of clients : \n");
     for (int i = 0; i < num_clients; i++) {
+        printf("> %d \n", clients[i].socket);
         if (clients[i].socket == socket) {
             return &clients[i];
         }
@@ -186,7 +188,7 @@ int write_directory(int client_fd,char *dir_path){
         }
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             errno = 0;
-            printf("Timeout occurred, no data received\n");
+            printf("[-] Timeout occurred, no data received\n");
             send(client_fd,NACK,strlen(NACK),0);
             attempt++;
             continue;
@@ -201,7 +203,7 @@ int write_directory(int client_fd,char *dir_path){
         if (dir == -1) {
             free(newpath);
             free(filedir);
-            perror("Could not recognize file :");
+            perror("[-] Could not recognize file :");
             return ERR;
         }
 
@@ -213,7 +215,7 @@ int write_directory(int client_fd,char *dir_path){
             snprintf(newpath, 2048, "%s/%s", STORAGE_DIR, path);
             int res = write_directory(client_fd, newpath);
             if (res == ERR) {
-                perror("Failed to download directory :");
+                perror("[-] Failed to download directory :");
                 free(newpath);
                 free(filedir);
                 return ERR;
@@ -247,7 +249,7 @@ void receive_upload(int client_fd, const char* path) {
         }
         if (errno==EWOULDBLOCK || errno==EAGAIN){
             errno = 0;
-            printf("Timeout occurred, no data received\n");
+            printf("[-] Timeout occurred, no data received\n");
             attempt++;
             continue;
         }
@@ -255,13 +257,13 @@ void receive_upload(int client_fd, const char* path) {
         if (dir==-1) attempt++;
     }
     if (attempt==3){
-        printf("Could not receive new request\n");
+        printf("[-] Could not receive new request\n");
         return;
     }
 
     client_session *client=get_client_session_by_socket(client_fd);
     if (client==NULL){
-        printf("Client session not found\n");
+        printf("[-] Client session not found\n");
         close(client_fd);
         return;
     }
@@ -380,6 +382,116 @@ void send_directory(int client_fd, const char* dir_path) {
     
 }
 
+void on_udp_broadcast(evutil_socket_t fd, short events, void* arg) {
+    Server* server = (Server*)arg;
+    struct sockaddr_in client_addr;
+    socklen_t addr_len = sizeof(client_addr);
+
+    int recv_len = recvfrom(fd, server->buff.buffer, MAX_BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &addr_len);
+    if (recv_len < 0) {
+        perror("[-] Error receiving UDP message");
+        return;
+    }
+
+    server->buff.buffer[recv_len] = '\0';
+    printf("Received broadcast message: %s\n", server->buff.buffer);
+    if (strncmp(server->buff.buffer,"DISCOVER_SERVER",16)==0){
+        char response[1024];
+        snprintf(response, sizeof(response), "%s:%d", inet_ntoa(server->serv_addr.sin_addr), ntohs(server->serv_addr.sin_port));
+        if (sendto(fd, response, strlen(response), 0, (struct sockaddr*)&client_addr, addr_len) < 0) {
+            perror("[-] Error sending UDP response");
+        } else {
+            printf("Sent discovery response: %s\n", response);
+        }
+    }
+    else if (strncmp(server->buff.buffer,"FILE_DISCOVER_SERVER",20)==0){
+        char* filename = strtok(server->buff.buffer + 21, " \n");
+        int bytes=look_for_file(filename,STORAGE_DIR);
+        if (bytes>0){
+            char response[1024];
+            snprintf(response, sizeof(response), "%s:%d", inet_ntoa(server->serv_addr.sin_addr), ntohs(server->serv_addr.sin_port));
+            if (sendto(fd, response, strlen(response), 0, (struct sockaddr*)&client_addr, addr_len) < 0) {
+                perror("[-] Error sending UDP response");
+            } else {
+                printf("Sent discovery response: %s\n", response);
+            }
+        }
+    }
+}
+
+void start_event_loop(Server* server) {
+    server->base = event_base_new();
+    event_add(event_new(server->base, server->tcp_fd, EV_READ | EV_PERSIST, on_accept, server), NULL);
+    event_add(event_new(server->base, server->udp_fd, EV_READ | EV_PERSIST, on_udp_broadcast, server), NULL);
+    printf("[+] Starting event loop...\n");
+    event_base_dispatch(server->base);
+}
+
+void change_directory(int client_fd, const char *newDir) {
+    char buffer[PATH_MAX];
+    char absPath[PATH_MAX];
+    static char normalizedStorageDir[PATH_MAX] = {0};
+    client_session *currSession = get_client_session_by_socket(client_fd);
+
+    printf("[DEBUG] Client requested change to directory: '%s'\n", newDir);
+    printf("[DEBUG] Current directory: '%s'\n", currSession->current_dir);
+
+    if (normalizedStorageDir[0]== '\0') {
+        if (realpath(STORAGE_DIR, normalizedStorageDir) == NULL) {
+            err("Couldn't retrieve STORAGE_DIR", 1);
+        }
+        size_t len = strlen(normalizedStorageDir);
+        if (len > 1 && normalizedStorageDir[len - 1] == '/') {
+            normalizedStorageDir[len - 1] = '\0'; 
+        }
+        printf("[INFO] Storage root resolved to: %s\n", normalizedStorageDir);
+    }
+
+    if (newDir[0] == '/') {
+        strncpy(buffer, newDir, PATH_MAX);
+        printf("[DEBUG] Absolute path provided: '%s'\n", buffer);
+    } else {
+        snprintf(buffer, PATH_MAX, "%s/%s", currSession->current_dir, newDir);
+        printf("[DEBUG] Constructed relative path: '%s'\n", buffer);
+    }
+
+    if (realpath(buffer, absPath) == NULL) {
+        perror("[-] realpath failed");
+        SEND_ERROR(client_fd, DIRECTORY_ERROR);
+        return;
+    }
+
+    printf("[DEBUG] Canonical absolute path resolved: '%s'\n", absPath);
+
+    if (strncmp(absPath, normalizedStorageDir, strlen(normalizedStorageDir)) != 0) {
+        printf("[-] Out of bounds! Resolved path: '%s', Storage root: '%s'\n", absPath, normalizedStorageDir);
+        SEND_ERROR(client_fd, "[-] Out of bounds!");
+        return;
+    }
+
+    if (!directory_exists(absPath)) {
+        printf("[-] Directory does not exist: '%s'\n", absPath);
+        SEND_ERROR(client_fd, DIRECTORY_ERROR);
+        return;
+    }
+
+    strncpy(currSession->current_dir, absPath, PATH_MAX);
+    printf("[DEBUG] Updated current directory to: '%s'\n", currSession->current_dir);
+
+
+    send(client_fd, ACK, strlen(ACK), 0);
+    printf("[DEBUG] ACK sent to client.\n");
+}
+
+void print_working_dir(int client_fd) {
+    client_session* sess = get_client_session_by_socket(client_fd);
+    if (sess == NULL) {
+        send(client_fd, "no_session", strlen("no_session"),0);
+        err("[-] Error retrieving session",-1);
+    }
+    printf("Sending sess->current_dir : %s \n", sess->current_dir);
+    send(client_fd, sess->current_dir, strlen(sess->current_dir),0);
+}
 
 void on_client_data(evutil_socket_t fd, short events, void* arg) {
     Server* server = (Server*)arg;
@@ -391,17 +503,17 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
     }
 
     server->buff.buffer[res] = '\0';
-    if (strncmp(server->buff.buffer, "upload", 6) == 0) {
-        char* path = strtok(server->buff.buffer + 7, " \n");
+    if (strncmp(server->buff.buffer, "upload", strlen("upload")) == 0) {
+        char* path = strtok(server->buff.buffer + strlen("upload") + 1, " \n");
         if (path) {
             send(fd,ACK,strlen(ACK),0);
             receive_upload(fd, path);
         } else {
             send(fd,NACK,strlen(NACK),0);
-            printf("No path provided for upload\n");
+            printf("[-] No path provided for upload\n");
         }
-    } else if (strncmp(server->buff.buffer, "download", 8) == 0) {
-        char* path = strtok(server->buff.buffer + 9, " \n");
+    } else if (strncmp(server->buff.buffer, "download", strlen("download") == 0)) {
+        char* path = strtok(server->buff.buffer + strlen("download")+1, " \n");
         if (path) {
             char fullpath[1024];
             snprintf(fullpath, sizeof(fullpath), "%s/%s", STORAGE_DIR, path);
@@ -422,53 +534,21 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
             printf("No path provided for download\n");
             send(fd, NACK, strlen(NACK), 0);
         }
-    }
-}
-
-
-void on_udp_broadcast(evutil_socket_t fd, short events, void* arg) {
-    Server* server = (Server*)arg;
-    struct sockaddr_in client_addr;
-    socklen_t addr_len = sizeof(client_addr);
-
-    int recv_len = recvfrom(fd, server->buff.buffer, MAX_BUFFER_SIZE, 0, (struct sockaddr*)&client_addr, &addr_len);
-    if (recv_len < 0) {
-        perror("Error receiving UDP message");
-        return;
-    }
-
-    server->buff.buffer[recv_len] = '\0';
-    printf("Received broadcast message: %s\n", server->buff.buffer);
-    if (strncmp(server->buff.buffer,"DISCOVER_SERVER",16)==0){
-        char response[1024];
-        snprintf(response, sizeof(response), "%s:%d", inet_ntoa(server->serv_addr.sin_addr), ntohs(server->serv_addr.sin_port));
-        if (sendto(fd, response, strlen(response), 0, (struct sockaddr*)&client_addr, addr_len) < 0) {
-            perror("Error sending UDP response");
+    } else if (strncmp(server->buff.buffer, "cd", strlen("cd")) == 0) {
+        char* path = strtok(server->buff.buffer + strlen("cd") + 1, " \n");
+        if (path) {
+            change_directory(fd, path);
         } else {
-            printf("Sent discovery response: %s\n", response);
+            printf("[-] No path provided for cd\n");
         }
-    }
-    else if (strncmp(server->buff.buffer,"FILE_DISCOVER_SERVER",20)==0){
-        char* filename = strtok(server->buff.buffer + 21, " \n");
-        int bytes=look_for_file(filename,STORAGE_DIR);
-        if (bytes>0){
-            char response[1024];
-            snprintf(response, sizeof(response), "%s:%d", inet_ntoa(server->serv_addr.sin_addr), ntohs(server->serv_addr.sin_port));
-            if (sendto(fd, response, strlen(response), 0, (struct sockaddr*)&client_addr, addr_len) < 0) {
-                perror("Error sending UDP response");
-            } else {
-                printf("Sent discovery response: %s\n", response);
-            }
+    } else if (strncmp(server->buff.buffer, "pwd", strlen("pwd")) == 0) {
+        char* path = strtok(server->buff.buffer + strlen("pwd") + 1, " \n");
+        if (path) {
+            print_working_dir(fd);
+        } else {
+            printf("[-] No path provided for pwd\n");
         }
-    }
-}
-
-void start_event_loop(Server* server) {
-    server->base = event_base_new();
-    event_add(event_new(server->base, server->tcp_fd, EV_READ | EV_PERSIST, on_accept, server), NULL);
-    event_add(event_new(server->base, server->udp_fd, EV_READ | EV_PERSIST, on_udp_broadcast, server), NULL);
-    printf("[+] Starting event loop...\n");
-    event_base_dispatch(server->base);
+    } 
 }
 
 int main(int argc, char** argv) {
