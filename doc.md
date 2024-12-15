@@ -20,6 +20,7 @@
 - [Connexion client/serveur](#connexion-client-server)
 - [Échange de données](#échange-de-données)
 - [Requête pwd](#requête-pwd)
+- [Requête list](#requête-list)
 
 ---
 
@@ -364,7 +365,7 @@ sudo ./server <port> <interface>
    - Si une requête prend trop de temps à recevoir une réponse, alors elle se renverra automatiquement.
    - Si un problème survient du côté download, `NACK` est envoyé et le côté upload renvoie les données.
    - Un maximum de 3 renvoie de données est possible par requête.
-
+---
 ### Requête pwd
 1. **Requête client** :
    - Le client envoie une requête `pwd` depuis le socket TCP.
@@ -374,4 +375,15 @@ sudo ./server <port> <interface>
 3. **Réponse du client** :
    - Si le client reçoit `no_session`, il renvoie la requête `pwd` jusqu'à un maximum de 3 tentatives.
    - Sinon il affiche ce qu'il a reçu du serveur.
+---
 
+### Requête list
+1. **Requête client** :
+   - Le client envoie une requête `list` depuis le socket TCP.
+2. **Réponse du serveur** :
+   - Le serveur envoie `NACK` en cas d'erreur
+   - Sinon le serveur envoie chaque fichier et répertoire contenu dans le répertoire courant au client
+   - Envoie `END` lorsque tout a été envoyé, puis attend la réponse du client
+3. **Réponse du client** :
+   - Le client renvoie la requête si il reçoit `NACK`
+   - Sinon il affiche les fichiers et répertoires du répertoire courant, puis envoie `ACK` lorsqu'il lit `END`
