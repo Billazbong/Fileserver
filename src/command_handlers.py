@@ -102,7 +102,7 @@ def receive_file(sock, save_path):
     while attempt<3:
         try:
             with open(save_path, 'wb') as file:
-                print(f"[*] Receiving file: {save_path}")
+                print(f"[+] Receiving file: {save_path}")
                 while True:
                     data = sock.recv(MAX_BUFFER_SIZE).decode().strip()
                     if compare_bits(data):
@@ -124,7 +124,7 @@ def receive_file(sock, save_path):
 
 def receive_directory(sock, base_path):
     """ Reçoit un répertoire et son contenu récursivement """
-    print(f"[*] Receiving directory: {base_path}")
+    print(f"[+] Receiving directory: {base_path}")
     os.makedirs(base_path, exist_ok=True)
     while True:
         try:

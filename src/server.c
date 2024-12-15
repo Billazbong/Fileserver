@@ -293,7 +293,7 @@ void send_file_to_client(int client_fd, const char* filename) {
         char buffer[MAX_BUFFER_SIZE];
         size_t bytes_read;
 
-        printf("[*] Sending file: %s\n", filename);
+        printf("[+] Sending file: %s\n", filename);
         while ((bytes_read = fread(buffer, 1, MAX_BUFFER_SIZE, file)) > 0) {
             if (send(client_fd, buffer, bytes_read, 0) < 0) {
                 perror("Error sending file");
@@ -333,7 +333,7 @@ void send_directory(int client_fd, const char* dir_path) {
     struct dirent* entry;
     char new_path[1024];
 
-    printf("[*] Sending directory: %s\n", dir_path);
+    printf("[+] Sending directory: %s\n", dir_path);
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) continue;
 
