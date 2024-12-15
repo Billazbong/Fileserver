@@ -4,6 +4,12 @@ import sys
 import command_handlers as cmd_h
 
 def create_socket():
+    """
+    Create a new TCP socket.
+
+    Returns:
+        socket.socket: A newly created socket.
+    """
     try:
         client_socket=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         return client_socket
@@ -12,6 +18,17 @@ def create_socket():
         sys.exit(1)
 
 def connect_socket(client_socket,host,port):
+    """
+    Connect the given socket to a server at the specified host and port.
+
+    Args:
+        client_socket (socket.socket): The client socket to connect.
+        host (str): The server host or IP address.
+        port (int): The server port number.
+
+    Returns:
+        None
+    """
     try:
         client_socket.connect((host,port))
         print(f"Connected to server {host}:{port}")
@@ -20,6 +37,16 @@ def connect_socket(client_socket,host,port):
         sys.exit(1)
 
 def handle_command(client_socket, message: str):
+    """
+    Parse and handle a command entered by the user.
+
+    Args:
+        client_socket (socket.socket): The connected client socket.
+        message (str): The command line input from the user.
+
+    Returns:
+        None
+    """
     parts = message.split()
     if len(parts) == 0:
         return
@@ -31,7 +58,15 @@ def handle_command(client_socket, message: str):
         cmd_h.command_map[command](parts, client_socket)
 
 def discover_servers(broadcast_port:int) -> list:
-    """Discover servers on the local network using UDP broadcast."""
+    """
+    Discover servers on the local network using UDP broadcast.
+
+    Args:
+        broadcast_port (int): The UDP broadcast port number.
+
+    Returns:
+        list: A list of server responses in the form 'ip:port'.
+    """
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     client_socket.settimeout(3)
@@ -49,7 +84,16 @@ def discover_servers(broadcast_port:int) -> list:
     return servers
 
 def discover_servers_from_file(broadcast_port,filename):
-    """Discover servers on the local network using UDP broadcast and a specific filename"""
+    """
+    Discover servers on the local network that have a specific file, using UDP broadcast.
+
+    Args:
+        broadcast_port (int): The UDP broadcast port.
+        filename (str): The name of the file to discover.
+
+    Returns:
+        list: A list of server responses in the form 'ip:port' for servers that have the file.
+    """
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     client_socket.settimeout(3)
@@ -66,8 +110,13 @@ def discover_servers_from_file(broadcast_port,filename):
         print("Server discovery timed out.")
     return servers
 
-
 def broadcast():
+    """
+    Discover servers on the local network and allow the user to choose one to connect to.
+
+    Returns:
+        socket.socket or int: A connected client socket if successful, 0 if no servers are found.
+    """
     broadcast_port = 9999 
     print("Discovering servers on the local network...")
     servers = discover_servers(broadcast_port)
@@ -75,24 +124,32 @@ def broadcast():
     if servers:
         print(f"[+] Found servers: \n" + "\n".join((f"{i} > {servers[i]}" for i in range(1, len(servers)))))
         if len(servers) == 1:
+            # If only one server found, connect directly
             print(f"Connecting to {servers[0]}...")
             host, port = servers[0].split(":") 
         else:
+            # If multiple servers found, let the user choose
             c = -1
             while (c not in range (1, len(servers)+1)):
                 print(f"Which server do you want to connect to ? ( 1 - {len(servers)} )")
                 c = int(input("> "))
             host, port = servers[c-1].split(":") 
 
-        print(f"Okay, Connecting...")
+        print("Okay, Connecting...")
         client_socket=create_socket()
         connect_socket(client_socket,host,int(port))
         return client_socket
     else:
         print("No servers found!")
         return 0
-    
+
 def find_server_from_file():
+    """
+    Discover servers on the local network that contain a specific file and allow the user to choose one to connect to.
+
+    Returns:
+        socket.socket or int: A connected client socket if successful, 0 if no servers are found.
+    """
     broadcast_port = 9999 
     filename=input("Enter filename>")
     print("Discovering servers on the local network...")
@@ -110,7 +167,7 @@ def find_server_from_file():
                 c = int(input("> "))
             host, port = servers[c-1].split(":") 
 
-        print(f"Okay, Connecting...")
+        print("Okay, Connecting...")
         client_socket=create_socket()
         connect_socket(client_socket,host,int(port))
         return client_socket
@@ -118,30 +175,38 @@ def find_server_from_file():
         print("No servers found!")
         return 0
 
-
 def main():
-    client_socket=0
-    choice=0
-    while(client_socket==0 or choice<1 or choice>2):
+    """
+    The main function handling:
+    - Discovering servers or files on the network.
+    - Connecting to the chosen server.
+    - Interactively handling user commands until interrupted.
+    """
+    client_socket = 0
+    choice  =0
+    while(client_socket == 0 or choice < 1 or choice > 2):
         try:
             print("Choose how to find servers :")
             print("1. Discover servers")
             print("2. Look for specific file")
-            choice=int(input(">"))
-            if choice==1:
+            choice = int(input(">"))
+            if choice == 1:
                 client_socket=broadcast()
-            elif choice==2:
-                client_socket=find_server_from_file()
+            elif choice == 2:
+                client_socket = find_server_from_file()
         except KeyboardInterrupt:
             print("\nGoodbye")
             sys.exit(0)
 
     print("Type 'help' for assistance")
-    while(True):
+    while True:
         try:
-            message=input(f"{os.getcwd()}>")
+            message = input(f"{ os.getcwd() }>")
             handle_command(client_socket,message)
         except KeyboardInterrupt:
             print("\nGoodbye")
             sys.exit(0)
-main()
+
+# Execute main when the script is run directly
+if __name__ == "__main__":
+    main()

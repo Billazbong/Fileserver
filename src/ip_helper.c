@@ -1,18 +1,5 @@
 #include "../include/ip_helper.h"    
 
-/**
- * @brief Retrieves the IP address of a specified network interface.
- *
- * @param interface_name The name of the network interface (i.e, `"eth0"`).
- * 
- * @return `in_addr_t` : IP address of the specified interface,
- * `INADDR_NONE` if the interface is not found or has no associated IP address.
- * 
- * @example
- * @code
- * in_addr_t ip = get_local_ip_of_interface("eth0");
- * @endcode
-*/
 in_addr_t get_local_ip_of_interface(const char* interface_name) {
     struct ifaddrs *ifaddr, *ifa;
     in_addr_t ip_addr = INADDR_NONE;
@@ -34,4 +21,3 @@ in_addr_t get_local_ip_of_interface(const char* interface_name) {
     freeifaddrs(ifaddr);
     return ip_addr;
 }
-
