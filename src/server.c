@@ -399,6 +399,31 @@ void send_file_to_client(int client_fd, const char* filename) {
 }
 
 /**
+ * @brief Creates a folder (directory) at the specified path.
+ *
+ * @param path The path where the folder should be created.
+ * @param mode The permissions for the new folder (e.g., 0700 for read/write/execute by the owner only).
+ * @return int Returns 0 on success, or -1 on failure with an error printed to stderr.
+ */
+int create_folder(int client_socket, const char* path) {
+    if (mkdir(path,0777) == 0) {
+        printf("[+] Folder created at : %s\n",path);
+        send(client_socket, ACK, strlen(ACK),0);
+        return 0;
+    } else {
+        if (errno == EEXIST) {
+            printf("[-] Folder already exists : %s\n", path);
+            SEND_ERROR(client_socket, "alr_exists");
+            return -1;
+        } else {
+            err("[-] Error creating folder",-1);
+            SEND_ERROR(client_socket, "cpt");
+        }
+        return -1;
+    }
+}
+
+/**
  * @brief Sends a directory and its contents (files and subdirectories) to the client.
  *
  * Iterates through the directory, sending information about files and subdirectories.
@@ -696,6 +721,14 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
             char boufeur [MAX_BUFFER_SIZE];
             recv(fd, boufeur, MAX_BUFFER_SIZE, 0);
             }
+        print_working_dir(fd);
+    } else if (strncmp(server->buff.buffer, "mkdir", strlen("mkdir")) == 0) {
+        char* path = strtok(server->buff.buffer + strlen("mkdir") + 1, " \n");
+        if (path) {
+            create_folder(fd, path);
+        } else {
+            printf("[-] No path provided for create_folder\n");
+        }
     }
 }
 

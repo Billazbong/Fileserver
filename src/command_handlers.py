@@ -144,7 +144,7 @@ def handle_list(tokens, client_socket):
     except Exception as e:
         print(f"[-] Error receiving list: {e}")
 
-def handle_mkdir(tokens):
+def handle_mkdir(tokens, sock):
     """
     Create a new directory on the fileserver.
 
@@ -154,8 +154,24 @@ def handle_mkdir(tokens):
     Returns:
         None
     """
-    if check_command_validity(tokens,2):
-        hit_server(tokens)
+    if not check_command_validity(tokens,2):
+        return
+    sock.settimeout(1)
+    attempt=0
+    while attempt<3:
+        try:
+            sock.sendall(f"mkdir {tokens[1]}".encode())
+            resp = sock.recv(MAX_BUFFER_SIZE).decode().strip()
+            if resp == "ACK":
+                print(f"[+] Successfully created {tokens[1]}")
+                return True
+            if resp == "alr_exists":
+                print(f"[-] Folder {tokens[1]} already exists !")
+                return False
+        except socket.timeout:
+            attempt+=1
+            print("[-] Timeout occured")
+    return False
 
 def compare_bits(data):
     """
