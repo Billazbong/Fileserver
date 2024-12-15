@@ -91,10 +91,15 @@ def handle_list(tokens):
 def handle_mkdir(tokens):
     if check_command_validity(tokens,2):
         hit_server(tokens)
+   
+def compare_bits(data):
+    return data[-3:] == END
 
-def handle_download(tokens, client_socket):
-    if check_command_validity(tokens, 2):
-        filename = tokens[1]
+def receive_file(sock, save_path):
+    """ Reçoit un fichier et l'enregistre à save_path """
+    sock.settimeout(5)
+    attempt=0
+    while attempt<3:
         try:
             with open(save_path, 'wb') as file:
                 print(f"[*] Receiving file: {save_path}")
@@ -106,6 +111,7 @@ def handle_download(tokens, client_socket):
                         print(f"Successfully downloaded {save_path}")
                         return True
                     file.write(data.encode())
+
         except socket.timeout:
             attempt+=1
             print("Timeout occured while waiting for data")
@@ -115,14 +121,11 @@ def handle_download(tokens, client_socket):
             attempt+=1
             if attempt <3 : sock.sendall(b'NACK')
     return False
-        
-
 
 def receive_directory(sock, base_path):
     """ Reçoit un répertoire et son contenu récursivement """
     print(f"[*] Receiving directory: {base_path}")
     os.makedirs(base_path, exist_ok=True)
-
     while True:
         try:
             data = sock.recv(MAX_BUFFER_SIZE).decode().strip()
@@ -258,26 +261,21 @@ def handle_download(args, sock):
     """
     Gère la commande 'download' en appelant les fonctions appropriées pour
     recevoir un fichier ou un répertoire.
-    
     Args:
         sock : La socket connectée au serveur.
         args : Les arguments de la commande (chemin distant, chemin local).
     """
     attempt = 0
     response = ''
-
     if not check_command_validity(args, 2):
         return
-
     command = f"download {args[1]}"
     while attempt < 3 and response != 'file' and response != 'dir':
         sock.sendall(command.encode())  # Envoi de la commande au serveur
-
         response = sock.recv(MAX_BUFFER_SIZE).decode()
         if response.strip() == "NACK":
             attempt += 1
             print("[-] Server: File or directory not found.")
-    
     if response == 'file':
         receive_file(sock, args[1])
     elif response == 'dir':

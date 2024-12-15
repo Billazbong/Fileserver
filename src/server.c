@@ -512,11 +512,12 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
             send(fd,NACK,strlen(NACK),0);
             printf("[-] No path provided for upload\n");
         }
-    } else if (strncmp(server->buff.buffer, "download", strlen("download") == 0)) {
+    } else if (strncmp(server->buff.buffer, "download", strlen("download")) == 0) {
         char* path = strtok(server->buff.buffer + strlen("download")+1, " \n");
         if (path) {
+            client_session* client=get_client_session_by_socket(fd);
             char fullpath[1024];
-            snprintf(fullpath, sizeof(fullpath), "%s/%s", STORAGE_DIR, path);
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", client->current_dir, path);
 
             int dir = check_download_request(fullpath);
 
