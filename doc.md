@@ -222,7 +222,7 @@ command_map = {
 Exécutez le script en utilisant Python :
 
 ```bash
-python script_name.py
+python client.py
 ```
 
 #### Exemples de commandes
