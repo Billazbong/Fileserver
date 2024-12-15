@@ -115,9 +115,7 @@ void init(Server* server, int port, const char* interface) {
  * @return A pointer to the client_session or NULL if not found.
  */
 client_session* get_client_session_by_socket(int socket) {
-    printf("List of clients : \n");
     for (int i = 0; i < num_clients; i++) {
-        printf("> %d \n", clients[i].socket);
         if (clients[i].socket == socket) {
             return &clients[i];
         }
@@ -721,7 +719,6 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
             char boufeur [MAX_BUFFER_SIZE];
             recv(fd, boufeur, MAX_BUFFER_SIZE, 0);
             }
-        print_working_dir(fd);
     } else if (strncmp(server->buff.buffer, "mkdir", strlen("mkdir")) == 0) {
         char* path = strtok(server->buff.buffer + strlen("mkdir") + 1, " \n");
         if (path) {
