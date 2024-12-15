@@ -2,22 +2,23 @@
 
 ## Sommaire
 
-### [Code Client](#code-client)
+### [Code Client](#code-client-python)
 - [Fonctionnalités](#fonctionnalités)
 - [Fonctions](#fonctions)
 - [Fonctionnement](#fonctionnement)
 - [Utilisation](#utilisation)
 - [Dépendances](#dépendances)
 
-### [Code Serveur](#code-serveur)
+### [Code Serveur](#code-serveur-c)
 - [Fonctionnalités](#fonctionnalités-1)
 - [Fonctions Principales](#fonctions-principales)
+- [Utilisation](#utilisation)
 - [Fonctionnement](#fonctionnement-1)
 - [Dépendances](#dépendances-1)
 
 ---
 
-## Code Client (Python)
+## [Code Client (Python)]
 
 ### Fonctionnalités
 
@@ -213,7 +214,7 @@ command_map = {
 Exécutez le script en utilisant Python :
 
 ```bash
-python client.py
+python script_name.py
 ```
 
 #### Exemples de commandes
@@ -240,7 +241,7 @@ python client.py
 
 ---
 
-## Code Serveur (C)
+## [Code Serveur (C)]
 
 ### Fonctionnalités
 
@@ -249,8 +250,8 @@ python client.py
    - Initialisation des structures du serveur et des événements.
 
 2. **Découverte et réponse aux clients** :
-   - Réception des requêtes UDP pour découvrir le serveur (`DISCOVER_SERVER`) ou localiser un fichier spécifique (`FILE_DISCOVER_SERVER <FILE>`).
-   - Envoi des réponses aux clients pour indiquer la présence.
+   - Réception des requêtes UDP pour découvrir le serveur (`DISCOVER_SERVER`) ou localiser un fichier spécifique.
+   - Envoi des réponses aux clients pour indiquer l'état ou la disponibilité.
 
 3. **Gestion des connexions client** :
    - Acceptation de nouvelles connexions client via TCP.
@@ -293,8 +294,18 @@ python client.py
 
 - **`change_directory`** : Change le répertoire courant de la session client.
 - **`print_working_dir`** : Affiche le répertoire courant du client.
-- **`create_folder`** : Crée un nouveau répertoire au niveau du répertoire courant de la session client.
 - **`on_client_data`** : Parse et exécute les commandes `upload`, `download`, `cd`, `list`, etc.
+
+---
+### Utilisation
+
+#### Exécution du script
+
+Exécutez le script depuis le répertoire `bin` :
+
+```bash
+sudo ./server <port> <interface>
+```
 
 ---
 
