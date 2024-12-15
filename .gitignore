@@ -9,3 +9,4 @@ bin/
 storage_directory.h
 *.json
 .gitignore
+storage_directory.h
