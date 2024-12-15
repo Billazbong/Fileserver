@@ -2,7 +2,7 @@
 
 ## Sommaire
 
-### Code Client
+### [Code Client](#code-client)
 - [Fonctionnalités](#fonctionnalités)
 - [Fonctions](#fonctions)
 - [Fonctionnement](#fonctionnement)
