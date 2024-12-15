@@ -17,7 +17,7 @@
 - [Dépendances](#dépendances-1)
 
 ### [Protocole](#protocole)
-- [Connexion client/serveur](#connexion-client-server)
+- [Connexion client/serveur](#connexion-client/server)
 
 ---
 
