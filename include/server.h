@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <event2/event.h>
+#include <limits.h>
 
 #include "ip_helper.h"
 #include "buffer.h"
@@ -29,7 +30,7 @@ typedef struct {
 } client_session;
 
 /**
- * @brief Represents a server instance and its associated data.
+    * @brief Represents a server instance and its associated data.
  */
 typedef struct {
     int tcp_fd;                      // File descriptor for the TCP socket.

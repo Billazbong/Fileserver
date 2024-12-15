@@ -6,3 +6,5 @@ server
 __pycache__/
 obj/
 bin/
+*.json
+.gitignore
