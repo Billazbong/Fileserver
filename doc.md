@@ -2,12 +2,24 @@
 
 ## Sommaire
 
-### [Code Client](#code-client)
+### [Code Client](#code-client-python)
 - [Fonctionnalités](#fonctionnalités)
 - [Fonctions](#fonctions)
 - [Fonctionnement](#fonctionnement)
 - [Utilisation](#utilisation)
 - [Dépendances](#dépendances)
+
+### [Code Serveur](#code-serveur-c)
+- [Fonctionnalités](#fonctionnalités-1)
+- [Fonctions Principales](#fonctions-principales)
+- [Utilisation](#utilisation)
+- [Fonctionnement](#fonctionnement-1)
+- [Dépendances](#dépendances-1)
+
+### [Protocole](#protocole)
+- [Connexion client/serveur](#connexion-client-server)
+- [Échange de données](#échange-de-données)
+- [Requête pwd](#requête-pwd)
 
 ---
 
@@ -33,12 +45,11 @@
 #### Gestion des fichiers et répertoires
 
 - Upload de fichiers et répertoires vers le serveur connecté.
-- Download de fichiers et répertooires depuis le serveur connecté.
+- Download de fichiers et répertoires depuis le serveur connecté.
 - Navigation dans les répertoires côté client et côté serveur.
 - Création de répertoire côté client et côté serveur.
 
 ---
-
 
 ### Fonctions
 
@@ -61,7 +72,7 @@ Connecte le socket donné à un hôte et un port spécifiques.
 
 #### `handle_command(client_socket, message)`
 
-Traite une commande utilisateur et utilise la fonction approprié depuis `cmd_h.command_map`.
+Traite une commande utilisateur et utilise la fonction appropriée depuis `cmd_h.command_map`.
 
 - **Paramètres** :
   - `client_socket` : Le socket client actif.
@@ -199,7 +210,6 @@ command_map = {
    - Gère les erreurs de création et de connexion de socket.
    - Traite les erreurs de saisie des commandes et les commandes inconnues.
 
-
 ---
 
 ### Utilisation
@@ -236,5 +246,132 @@ python script_name.py
 
 ---
 
+## Code Serveur (C)
 
+### Fonctionnalités
+
+1. **Configuration du serveur** :
+   - Création de sockets TCP et UDP pour gérer les connexions client et les diffusions réseau.
+   - Initialisation des structures du serveur et des événements.
+
+2. **Découverte et réponse aux clients** :
+   - Réception des requêtes UDP pour découvrir le serveur (`DISCOVER_SERVER`) ou localiser un fichier spécifique.
+   - Envoi des réponses aux clients pour indiquer l'état ou la disponibilité.
+
+3. **Gestion des connexions client** :
+   - Acceptation de nouvelles connexions client via TCP.
+   - Gestion des sessions client (répertoires de travail, sockets actifs).
+
+4. **Manipulation de fichiers et répertoires** :
+   - Téléchargement et envoi de fichiers et répertoires.
+   - Création et gestion des répertoires côté serveur.
+
+5. **Événements réseau** :
+   - Traitement des événements asynchrones pour les connexions et les diffusions.
+
+---
+
+### Fonctions Principales
+
+#### Initialisation du serveur
+
+- **`setup_storage_dir`** : Vérifie et initialise le répertoire de stockage du serveur.
+- **`init`** : Configure les sockets, les adresses, et initialise les événements nécessaires.
+- **`start_event_loop`** : Démarre la boucle principale pour gérer les événements TCP/UDP.
+
+#### Découverte des serveurs
+
+- **`on_udp_broadcast`** : Répond aux diffusions UDP pour indiquer la disponibilité du serveur ou des fichiers.
+
+#### Gestion des clients
+
+- **`on_accept`** : Accepte une nouvelle connexion client et initialise sa session.
+- **`on_client_data`** : Traite les commandes envoyées par les clients (`upload`, `download`, `cd`, etc.).
+
+#### Manipulation de fichiers
+
+- **`write_file`** : Reçoit un fichier d'un client et l'écrit sur le serveur.
+- **`write_directory`** : Reçoit un répertoire et son contenu récursivement.
+- **`send_file_to_client`** : Envoie un fichier au client.
+- **`send_directory`** : Envoie un répertoire (et ses sous-éléments) au client.
+
+#### Commandes utilisateur
+
+- **`change_directory`** : Change le répertoire courant de la session client.
+- **`print_working_dir`** : Affiche le répertoire courant du client.
+- **`on_client_data`** : Parse et exécute les commandes `upload`, `download`, `cd`, `list`, etc.
+
+---
+### Utilisation
+
+#### Exécution du script
+
+Exécutez le script depuis le répertoire `bin` :
+
+```bash
+sudo ./server <port> <interface>
+```
+
+---
+
+### Fonctionnement
+
+1. **Démarrage** :
+   - Initialisation des sockets TCP et UDP, configuration des événements.
+   - Vérification et création du répertoire de stockage si nécessaire.
+
+2. **Événements réseau** :
+   - Diffusion UDP pour découvrir le serveur ou des fichiers.
+   - Connexion des clients via TCP pour des opérations spécifiques.
+
+3. **Interaction client** :
+   - Réception des commandes (upload, download, cd, pwd).
+   - Exécution des opérations demandées (écriture de fichiers, envoi de répertoires, etc.).
+
+---
+
+### Dépendances
+
+- `libevent` : Gestion des événements réseau.
+- Systèmes Unix (pour les sockets et la manipulation de fichiers).
+
+---
+
+## Protocole
+
+### Connexion client/serveur
+1. **Requête client** :
+   - Le client envoie une requête `DISCOVER_SERVER` ou `FILE_DISCOVER_SERVER <FILE>` sur le socket UDP
+   - Le client attend les réponses des serveurs.
+2. **Réponse serveur** :
+   - Le serveur répond par `<ip_address>:<port>` si une requête de type `DISCOVER_SERVER` a été reçu ou si `FILE` existe dans son arborescence après le reçu d'une requête `FILE_DISCOVER_SERVER <FILE>`
+3. **Création du socket TCP** :
+   - Le client choisi le serveur auquel il souhaite se connecter parmi la liste des adresses ip reçu.
+   - Le client envoie la requête de connexion au serveur.
+   - Le serveur accepte la requête du client.
+---
+
+### Échange de données
+1. **Requête client** :
+   - Le client envoie une requête `download <file>/<directory` ou `upload <file>/<directory>` depuis le socket TCP.
+2. **Validation** :
+   - Le serveur reçoit la requête et la valide.
+3. **Échange de données** :
+   - Le côté upload commence toujours par préciser le type de données avec une requête `dir` ou `file`, cette requête est répété à chaque fois nouvelles données lors d'échanges de répertoires.
+   - Le côté download valide le reçu par `ACK`.
+   - Le côté upload envoie les données du fichier ou du répertoire, puis termine par un `END` et attend une réponse du client.
+   - Le côté download récupère les données, puis envoie `ACK` lorsque `END` est reçu.
+   - Si une requête prend trop de temps à recevoir une réponse, alors elle se renverra automatiquement.
+   - Si un problème survient du côté download, `NACK` est envoyé et le côté upload renvoie les données.
+   - Un maximum de 3 renvoie de données est possible par requête.
+
+### Requête pwd
+1. **Requête client** :
+   - Le client envoie une requête `pwd` depuis le socket TCP.
+2. **Réponse du serveur** :
+   - Le serveur récupère le chemin du répertoire courant de la session client et lui envoie.
+   - En cas d'échec, le serveur envoie l'erreur `no_session` au client
+3. **Réponse du client** :
+   - Si le client reçoit `no_session`, il renvoie la requête `pwd` jusqu'à un maximum de 3 tentatives.
+   - Sinon il affiche ce qu'il a reçu du serveur.
 
