@@ -6,5 +6,6 @@ server
 __pycache__/
 obj/
 bin/
+storage_directory.h
 *.json
 .gitignore

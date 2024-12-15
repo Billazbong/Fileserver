@@ -8,6 +8,7 @@
 #include <event2/event.h>
 #include <dirent.h>
 #include <stdbool.h>
+#include <string.h>
 
 /**
  * @brief Checks if the end of transmission signal (END) is present at the end of the buffer.

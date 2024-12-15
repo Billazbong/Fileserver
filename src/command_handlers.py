@@ -116,7 +116,7 @@ def handle_pwd(tokens, client_socket):
             print(f"[-] Error while sending request: {e}")
     return False
 
-def handle_list(tokens):
+def handle_list(tokens, client_socket):
     """
     List files in the current directory on the fileserver by sending a command to the server.
 
@@ -126,8 +126,23 @@ def handle_list(tokens):
     Returns:
         None
     """
-    if check_command_validity(tokens,1):
-        hit_server(tokens)
+    if not check_command_validity(tokens, 1):
+        return
+    client_socket.settimeout(5)
+    try:
+        client_socket.sendall("list".encode())
+        print("Files on server:")
+        while True:
+            data = client_socket.recv(MAX_BUFFER_SIZE).decode().strip()
+            if compare_bits(data):
+                client_socket.sendall(b"ACK")
+                print(data[:-3])
+                return
+            print(data)
+    except socket.timeout:
+        print("[-] Timeout occurred while receiving data")
+    except Exception as e:
+        print(f"[-] Error receiving list: {e}")
 
 def handle_mkdir(tokens):
     """
