@@ -16,6 +16,9 @@
 - [Fonctionnement](#fonctionnement-1)
 - [Dépendances](#dépendances-1)
 
+### [Protocole](#protocole)
+- [Connexion client/serveur](#connexion-client-server)
+
 ---
 
 ## Code Client (Python)
@@ -329,4 +332,20 @@ sudo ./server <port> <interface>
 
 - `libevent` : Gestion des événements réseau.
 - Systèmes Unix (pour les sockets et la manipulation de fichiers).
+
+---
+
+## Protocole
+
+### Connexion client/serveur
+1. **Requête client** :
+   - Le client envoie une requête `DISCOVER_SERVER` ou `FILE_DISCOVER_SERVER <FILE>` sur le socket UDP
+   - Le client attend les réponses des serveurs.
+2. **Réponse serveur** :
+   - Le serveur répond par `<ip_address>:<port>` si une requête de type `DISCOVER_SERVER` a été reçu ou si `FILE` existe dans son arborescence après le reçu d'une requête `FILE_DISCOVER_SERVER <FILE>`
+3. **Création du socket TCP** :
+   - Le client choisi le serveur auquel il souhaite se connecter parmi la liste des adresses ip reçu.
+   - Le client envoie la requête de connexion au serveur.
+   - Le serveur accepte la requête du client.
+---
 
