@@ -19,6 +19,8 @@
 ### [Protocole](#protocole)
 - [Connexion client/serveur](#connexion-client-server)
 - [Échange de données](#échange-de-données)
+- [Requête pwd](#requête-pwd)
+
 ---
 
 ## Code Client (Python)
@@ -359,4 +361,17 @@ sudo ./server <port> <interface>
    - Le côté download valide le reçu par `ACK`.
    - Le côté upload envoie les données du fichier ou du répertoire, puis termine par un `END` et attend une réponse du client.
    - Le côté download récupère les données, puis envoie `ACK` lorsque `END` est reçu.
+   - Si une requête prend trop de temps à recevoir une réponse, alors elle se renverra automatiquement.
+   - Si un problème survient du côté download, `NACK` est envoyé et le côté upload renvoie les données.
+   - Un maximum de 3 renvoie de données est possible par requête.
+
+### Requête pwd
+1. **Requête client** :
+   - Le client envoie une requête `pwd` depuis le socket TCP.
+2. **Réponse du serveur** :
+   - Le serveur récupère le chemin du répertoire courant de la session client et lui envoie.
+   - En cas d'échec, le serveur envoie l'erreur `no_session` au client
+3. **Réponse du client** :
+   - Si le client reçoit `no_session`, il renvoie la requête `pwd` jusqu'à un maximum de 3 tentatives.
+   - Sinon il affiche ce qu'il a reçu du serveur.
 
