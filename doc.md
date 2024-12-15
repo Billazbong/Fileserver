@@ -21,6 +21,8 @@
 - [Échange de données](#échange-de-données)
 - [Requête pwd](#requête-pwd)
 - [Requête list](#requête-list)
+- [Requête cd](#requête-cd)
+- [Requête mkdir](#requête-mkdir)
 
 ---
 
@@ -387,3 +389,18 @@ sudo ./server <port> <interface>
 3. **Réponse du client** :
    - Le client renvoie la requête si il reçoit `NACK`
    - Sinon il affiche les fichiers et répertoires du répertoire courant, puis envoie `ACK` lorsqu'il lit `END`
+---
+### Requête cd
+1. **Requête client** :
+   - Le client envoie une requête `cd <directory>` depuis le socket TCP.
+2. **Réponse du serveur** :
+   - Le serveur modifie le répertoire courant de la session client, puis envoie `ACK` si il a réussit, une erreur commençant par `[-]` sinon
+---
+### Requête mkdir
+1. **Requête client** :
+   - Le client envoie une requête `mkdir <directory>` depuis le socket TCP.
+2. **Réponse du serveur** :
+   - Le serveur essaie de créer `directory` depuis le répertoire courant de la session client.
+   - Le serveur envoie `ACK` si il a réussit, `alr_exists` si le répertoire existe déjà.
+3. **Réponse du client** :
+    - En cas de timeout, le client renvoie la requête jusqu'à 3 tentatives.
