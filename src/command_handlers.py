@@ -506,7 +506,7 @@ def handle_llist(tokens, _):
     if not check_command_validity(tokens,1):
         return
     listing=os.listdir()
-    print(LIGHT_YELLOW + f"===== Files in {os.path()} =====" + RESET)
+    print(LIGHT_YELLOW + f"===== Files in {os.getcwd()} =====" + RESET)
     for file in listing:
         print(file)
 
