@@ -657,7 +657,7 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
             send(fd,NACK,strlen(NACK),0);
             printf("[-] No path provided for upload\n");
         }
-    } else if (strncmp(server->buff.buffer, "download", strlen("download")) == 0) {
+    } else if (strncmp(server->buff.buffer, "download", strlen("download")) == 0){
         char* path = strtok(server->buff.buffer + strlen("download")+1, " \n");
         if (path) {
             char* curdir=get_client_dir_by_socket(fd);
