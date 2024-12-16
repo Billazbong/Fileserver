@@ -114,10 +114,10 @@ void init(Server* server, int port, const char* interface) {
  * @param socket The socket descriptor of the client.
  * @return A pointer to the client_session or NULL if not found.
  */
-client_session* get_client_session_by_socket(int socket) {
+char* get_client_dir_by_socket(int socket) {
     for (int i = 0; i < num_clients; i++) {
         if (clients[i].socket == socket) {
-            return &clients[i];
+            return &clients[i].current_dir;
         }
     }
     return NULL;  
@@ -263,10 +263,11 @@ int write_directory(int client_fd,char *dir_path){
 
         memset(newpath, 0, 2048);
         memset(filedir, 0, 2048);
-
+        char *curdir=get_client_dir_by_socket(client_fd);
         if (dir == 1) {
             char *path = strtok(buffer + 4, " \n");
-            snprintf(newpath, 2048, "%s/%s", STORAGE_DIR, path);
+            snprintf(newpath, 2048, "%s/%s", curdir, path);
+            printf("d:%s a:%s\n",dir_path,path);
             int res = write_directory(client_fd, newpath);
             if (res == ERR) {
                 perror("[-] Failed to download directory :");
@@ -275,8 +276,9 @@ int write_directory(int client_fd,char *dir_path){
                 return ERR;
             }
         } else {
-            char *path = strtok(buffer + 4, " \n");
-            snprintf(newpath, 2048, "%s/%s", STORAGE_DIR, path);
+            char *path = strtok(buffer + 5, " \n");
+            snprintf(newpath, 2048, "%s/%s", curdir, path);
+            printf("d:%s a:%s\n",dir_path,path);
             write_file(client_fd, newpath);
         }
 
@@ -325,14 +327,14 @@ void receive_upload(int client_fd, const char* path) {
         return;
     }
 
-    client_session *client=get_client_session_by_socket(client_fd);
-    if (client==NULL){
+    char *curdir=get_client_dir_by_socket(client_fd);
+    if (curdir==NULL){
         printf("[-] Client session not found\n");
         close(client_fd);
         return;
     }
-    char newpath[2048];
-    snprintf(newpath, sizeof(newpath), "%s/%s", client->current_dir , path);
+    char newpath[strlen(curdir)+strlen(path)+2];
+    snprintf(newpath, sizeof(newpath), "%s/%s", curdir , path);
     printf("Receiving file at path: %s\n", newpath); 
     if (!dir){
         write_file(client_fd,newpath);
@@ -404,13 +406,15 @@ void send_file_to_client(int client_fd, const char* filename) {
  * @return int Returns 0 on success, or -1 on failure with an error printed to stderr.
  */
 int create_folder(int client_socket, const char* path) {
-    if (mkdir(path,0777) == 0) {
-        printf("[+] Folder created at : %s\n",path);
+    char fullpath[2048];
+    snprintf(fullpath,2048,"%s/%s",get_client_dir_by_socket(client_socket),path);
+    if (mkdir(fullpath,0777) == 0) {
+        printf("[+] Folder created at : %s\n",fullpath);
         send(client_socket, ACK, strlen(ACK),0);
         return 0;
     } else {
         if (errno == EEXIST) {
-            printf("[-] Folder already exists : %s\n", path);
+            printf("[-] Folder already exists : %s\n", fullpath);
             SEND_ERROR(client_socket, "alr_exists");
             return -1;
         } else {
@@ -565,11 +569,7 @@ void change_directory(int client_fd, const char *newDir) {
     char buffer[PATH_MAX];
     char absPath[PATH_MAX];
     static char normalizedStorageDir[PATH_MAX] = {0};
-    client_session *currSession = get_client_session_by_socket(client_fd);
-
-    printf("[DEBUG] Client requested change to directory: '%s'\n", newDir);
-    printf("[DEBUG] Current directory: '%s'\n", currSession->current_dir);
-
+    char *curdir = get_client_dir_by_socket(client_fd);
     if (normalizedStorageDir[0]== '\0') {
         if (realpath(STORAGE_DIR, normalizedStorageDir) == NULL) {
             err("Couldn't retrieve STORAGE_DIR", 1);
@@ -578,15 +578,12 @@ void change_directory(int client_fd, const char *newDir) {
         if (len > 1 && normalizedStorageDir[len - 1] == '/') {
             normalizedStorageDir[len - 1] = '\0'; 
         }
-        printf("[INFO] Storage root resolved to: %s\n", normalizedStorageDir);
     }
 
     if (newDir[0] == '/') {
         strncpy(buffer, newDir, PATH_MAX);
-        printf("[DEBUG] Absolute path provided: '%s'\n", buffer);
     } else {
-        snprintf(buffer, PATH_MAX, "%s/%s", currSession->current_dir, newDir);
-        printf("[DEBUG] Constructed relative path: '%s'\n", buffer);
+        snprintf(buffer, PATH_MAX, "%s/%s", curdir, newDir);
     }
 
     if (realpath(buffer, absPath) == NULL) {
@@ -594,9 +591,6 @@ void change_directory(int client_fd, const char *newDir) {
         SEND_ERROR(client_fd, DIRECTORY_ERROR);
         return;
     }
-
-    printf("[DEBUG] Canonical absolute path resolved: '%s'\n", absPath);
-
     if (strncmp(absPath, normalizedStorageDir, strlen(normalizedStorageDir)) != 0) {
         printf("[-] Out of bounds! Resolved path: '%s', Storage root: '%s'\n", absPath, normalizedStorageDir);
         SEND_ERROR(client_fd, "[-] Out of bounds!");
@@ -609,12 +603,10 @@ void change_directory(int client_fd, const char *newDir) {
         return;
     }
 
-    strncpy(currSession->current_dir, absPath, PATH_MAX);
-    printf("[DEBUG] Updated current directory to: '%s'\n", currSession->current_dir);
-
+    strncpy(curdir, absPath, PATH_MAX);
 
     send(client_fd, ACK, strlen(ACK), 0);
-    printf("[DEBUG] ACK sent to client.\n");
+
 }
 
 /**
@@ -626,13 +618,14 @@ void change_directory(int client_fd, const char *newDir) {
  * @return None
  */
 void print_working_dir(int client_fd) {
-    client_session* sess = get_client_session_by_socket(client_fd);
-    if (sess == NULL) {
+    char* curdir = get_client_dir_by_socket(client_fd);
+    if (curdir == NULL) {
         send(client_fd, "no_session", strlen("no_session"),0);
-        err("[-] Error retrieving session",-1);
+        perror("[-] Error retrieving session");
+        return;
     }
-    printf("Sending sess->current_dir : %s \n", sess->current_dir);
-    send(client_fd, sess->current_dir, strlen(sess->current_dir),0);
+    printf("Sending session current directory : %s \n", curdir);
+    send(client_fd, curdir, strlen(curdir),0);
 }
 
 /**
@@ -667,9 +660,9 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
     } else if (strncmp(server->buff.buffer, "download", strlen("download")) == 0) {
         char* path = strtok(server->buff.buffer + strlen("download")+1, " \n");
         if (path) {
-            client_session* client=get_client_session_by_socket(fd);
-            char fullpath[1024];
-            snprintf(fullpath, sizeof(fullpath), "%s/%s", client->current_dir, path);
+            char* curdir=get_client_dir_by_socket(fd);
+            char fullpath[2048];
+            snprintf(fullpath, sizeof(fullpath), "%s/%s", curdir, path);
 
             int dir = check_download_request(fullpath);
 
@@ -698,9 +691,9 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
             print_working_dir(fd);
              
     } else if (strncmp(server->buff.buffer, "list", strlen("list")) == 0) {
-        client_session* sess = get_client_session_by_socket(fd);
-        if (sess) {
-            DIR* dir = opendir(sess->current_dir);
+        char* curdir = get_client_dir_by_socket(fd);
+        if (curdir) {
+            DIR* dir = opendir(curdir);
             if (!dir) {
                 perror("[-] Could not open current directory");
                 send(fd, "NACK", strlen("NACK"), 0);
@@ -723,6 +716,7 @@ void on_client_data(evutil_socket_t fd, short events, void* arg) {
         char* path = strtok(server->buff.buffer + strlen("mkdir") + 1, " \n");
         if (path) {
             create_folder(fd, path);
+            printf("c good\n");
         } else {
             printf("[-] No path provided for create_folder\n");
         }

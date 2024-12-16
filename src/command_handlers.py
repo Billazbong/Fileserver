@@ -61,7 +61,7 @@ def handle_cd(tokens, client_socket):
     """
     if not check_command_validity(tokens,2):
         return False
-    client_socket.settimeout(1)
+    client_socket.settimeout(1001)
     attempt = 0
     while attempt<3:
         try:
@@ -96,7 +96,7 @@ def handle_pwd(tokens, client_socket):
     """
     if not check_command_validity(tokens,1):
         return False
-    client_socket.settimeout(1)
+    client_socket.settimeout(1001)
     attempt = 0
     while attempt<3:
         try:
@@ -128,7 +128,7 @@ def handle_list(tokens, client_socket):
     """
     if not check_command_validity(tokens, 1):
         return
-    client_socket.settimeout(5)
+    client_socket.settimeout(1005)
     attempt=0
     while attempt<3:
         try:
@@ -164,7 +164,7 @@ def handle_mkdir(tokens, sock):
     """
     if not check_command_validity(tokens,2):
         return
-    sock.settimeout(1)
+    sock.settimeout(1001)
     attempt=0
     while attempt<3:
         try:
@@ -204,7 +204,7 @@ def receive_file(sock, save_path):
     Returns:
         bool: True if file received successfully, False otherwise.
     """
-    sock.settimeout(5)
+    sock.settimeout(1005)
     attempt=0
     while attempt<3:
         try:
@@ -275,7 +275,7 @@ def send_upload_type(message,client_socket):
     Returns:
         bool: True if ACK is received, False otherwise.
     """
-    client_socket.settimeout(10)
+    client_socket.settimeout(10010)
     attempt=0
     while attempt<3:
         try:
@@ -306,7 +306,7 @@ def send_file(filepath, client_socket):
     """
     if not send_upload_type(f"file {filepath}",client_socket):
         return False
-    client_socket.settimeout(10)
+    client_socket.settimeout(10010)
     attempt=0
     while attempt<3 :
         try:
@@ -349,7 +349,7 @@ def send_directory(dir_path,client_socket):
     """
     attempt=0
     resp="NACK"
-    client_socket.settimeout(10)
+    client_socket.settimeout(10010)
     while resp=="NACK" and attempt < 3:
         try:
             if not send_upload_type(f"dir {dir_path}",client_socket):
@@ -387,7 +387,7 @@ def handle_upload(tokens, client_socket):
     Returns:
         bool: True if upload succeeds, False otherwise.
     """
-    client_socket.settimeout(115)
+    client_socket.settimeout(100115)
     if check_command_validity(tokens, 2):
         path = tokens[1]
         if not os.path.exists(path):
