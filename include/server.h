@@ -39,7 +39,7 @@
  */
 typedef struct {
     int socket;             /**< The client's socket descriptor. */
-    char current_dir[1024]; /**< The client's current working directory. */
+    char current_dir[2048]; /**< The client's current working directory. */
 } client_session;
 
 /**
