@@ -86,5 +86,6 @@ int look_for_file(char *filename,char *path){
             }
         }
     }
+    closedir(dp);
     return 0;
 }

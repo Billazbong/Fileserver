@@ -19,6 +19,12 @@ commands = {
 
 MAX_BUFFER_SIZE=8192
 END="END"
+RESET = "\033[0m"
+LIGHT_PURPLE = "\033[95m"
+LIGHT_GREEN = "\033[92m"
+LIGHT_BLUE = "\033[94m"
+LIGHT_YELLOW = "\033[93m"
+LIGHT_RED = "\033[91m"
 
 def handle_help(tokens):
     """
@@ -34,7 +40,7 @@ def handle_help(tokens):
     """
     if len(tokens) > 2:
         command = tokens[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command)}")
+        print(LIGHT_RED + f"Wrong number of argument.\n{command} : {commands.get(command)}" + RESET)
         return
     if len(tokens) == 1:
         print("All available commands :")
@@ -44,7 +50,7 @@ def handle_help(tokens):
         command_to_desc = tokens[1].lower()
         description = commands.get(command_to_desc)
         if description:
-            print(f"Command '{command_to_desc}' : {description}")
+            print(LIGHT_GREEN + f"Command '{command_to_desc}' : {RESET} {LIGHT_BLUE} {description} {RESET}")
         else:
             print(f"Command '{command_to_desc}' not found")
 
@@ -76,10 +82,10 @@ def handle_cd(tokens, client_socket):
                 # If unexpected response, retry
                 attempt +=1
         except socket.timeout:
-            print(f"[-] Attempt {attempt + 1}: Timeout occurred while sending data")
+            print(LIGHT_YELLOW + f"[-] Attempt {attempt + 1}: Timeout occurred while sending data" + RESET)
             attempt+=1
         except Exception as e:
-            print(f"[-] Error while sending request: {e}")
+            print(LIGHT_RED + f"[-] Error while sending request: {e}" + RESET)
             return False
     return False
 
@@ -108,6 +114,8 @@ def handle_pwd(tokens, client_socket):
                 continue
             else:
                 print(resp)
+                global session_cursor 
+                session_cursor = resp
                 return True
         except socket.timeout:
             print(f"[-] Attempt {attempt + 1}: Timeout occurred while sending data")
@@ -133,23 +141,24 @@ def handle_list(tokens, client_socket):
     while attempt<3:
         try:
             client_socket.sendall("list".encode())
-            print("Files on server:")
+            if 'session_cursor' in globals():
+                print(LIGHT_GREEN + f"=== Files in {session_cursor} : === " + RESET)
             while True:
                 data = client_socket.recv(MAX_BUFFER_SIZE).decode().strip()
                 if data=="NACK":
                     attempt+=1
-                    print("Server responded with NACK, resending request")
+                    print(LIGHT_YELLOW + "Server responded with NACK, resending request" + RESET)
                     continue
                 if compare_bits(data):
                     client_socket.sendall(b"ACK")
-                    print(data[:-3])
+                    print(LIGHT_PURPLE + f"{data[:-3]}" + RESET)
                     return
-                print(data)
+                print(LIGHT_PURPLE + f"{data}" + RESET)
         except socket.timeout:
-            print("[-] Timeout occurred while receiving data")
+            print(LIGHT_RED + "[-] Timeout occurred while receiving data" + RESET)
             attempt+=1
         except Exception as e:
-            print(f"[-] Error receiving list: {e}")
+            print(LIGHT_RED + f"[-] Error receiving list: {e}" + RESET)
             attempt+=1
 
 def handle_mkdir(tokens, sock):
@@ -171,14 +180,14 @@ def handle_mkdir(tokens, sock):
             sock.sendall(f"mkdir {tokens[1]}".encode())
             resp = sock.recv(MAX_BUFFER_SIZE).decode().strip()
             if resp == "ACK":
-                print(f"[+] Successfully created {tokens[1]}")
+                print(LIGHT_GREEN + f"[+] Successfully created {tokens[1]}" + RESET)
                 return True
             if resp == "alr_exists":
-                print(f"[-] Folder {tokens[1]} already exists !")
+                print(LIGHT_RED + f"[-] Folder {tokens[1]} already exists !" + RESET)
                 return False
         except socket.timeout:
             attempt+=1
-            print("[-] Timeout occured")
+            print(LIGHT_RED + "[-] Timeout occured" + RESET)
     return False
 
 def compare_bits(data):
@@ -209,22 +218,21 @@ def receive_file(sock, save_path):
     while attempt<3:
         try:
             with open(save_path, 'wb') as file:
-                print(f"[+] Receiving file: {save_path}")
+                print(LIGHT_YELLOW + f"[+] Receiving file: {save_path} + RESET")
                 while True:
                     data = sock.recv(MAX_BUFFER_SIZE).decode().strip()
                     if compare_bits(data):
-                        # Write remaining data (excluding END)
                         file.write(data[:-3].encode())
                         sock.sendall(b'ACK')
-                        print(f"Successfully downloaded {save_path}")
+                        print(LIGHT_GREEN + f"[-] Successfully downloaded {save_path}" + RESET)
                         return True
                     file.write(data.encode())
         except socket.timeout:
             attempt+=1
-            print("Timeout occured while waiting for data")
+            print(LIGHT_YELLOW + "Timeout occured while waiting for data" + RESET)
             sock.sendall(b'NACK')
         except Exception as e:
-            print(f"Error while creating file: {e}")
+            print(LIGHT_RED + f"[-] Error while creating file: {e}" + RESET)
             attempt+=1
             if attempt <3 : sock.sendall(b'NACK')
     return False
@@ -240,7 +248,7 @@ def receive_directory(sock, base_path):
     Returns:
         bool: True on success, False otherwise.
     """
-    print(f"[+] Receiving directory: {base_path}")
+    print(LIGHT_GREEN + f"[+] Receiving directory: {base_path}" + RESET)
     os.makedirs(base_path, exist_ok=True)
     while True:
         try:
@@ -248,7 +256,7 @@ def receive_directory(sock, base_path):
             if compare_bits(data):
                 sock.sendall(b'ACK')
                 return True
-            # The server sends "file <filename>" or "dir <dirname>"
+            # The server sends back "file <filename>" or "dir <dirname>"
             if data.startswith("file"):
                 sock.sendall(b'ACK')
                 _, filename = data.split(" ", 1)
@@ -260,7 +268,7 @@ def receive_directory(sock, base_path):
                 new_dir_path = os.path.join(base_path, dirname.strip())
                 receive_directory(sock, new_dir_path)
         except Exception as e:
-            print(f"Error while trying to download : {e}")
+            print(LIGHT_RED + f"[-] Error while trying to download : {e}" + RESET)
             sock.sendall(b"NACK")
             return False
 
@@ -283,14 +291,14 @@ def send_upload_type(message,client_socket):
             resp=client_socket.recv(MAX_BUFFER_SIZE).decode()
             if resp=="NACK":
                 attempt+=1
-                print("Received NACK from server, resending the message." if attempt<3 else "Could not send message to server.")
+                print("Received NACK from server, resending the message." if attempt<3 else LIGHT_RED + "[-] Could not send message to server." + RESET)
                 continue
             return resp=="ACK"
         except socket.timeout:
-            print(f"Attempt {attempt + 1}: Timeout occurred while sending data")
+            print(LIGHT_YELLOW + f"Attempt {attempt + 1}: Timeout occurred while sending data" + RESET)
             attempt+=1
         except Exception as e:
-            print(f"Error while sending request: {e}")
+            print(LIGHT_RED + f"Error while sending request: {e}" + RESET)
     return False
 
 def send_file(filepath, client_socket):
@@ -316,23 +324,23 @@ def send_file(filepath, client_socket):
                     if not data:
                         break
                     client_socket.sendall(data)
-                    print(f"Sent {len(data)} bytes")
+                    print(LIGHT_YELLOW + f"Sent {len(data)} bytes" + RESET)
             # Send END signal after sending the file
             client_socket.sendall(END.encode())
             resp=client_socket.recv(MAX_BUFFER_SIZE).decode()
             if resp == "NACK":
                 attempt+=1
                 continue
-            print(f"File '{filepath}' sent successfully.")
+            print(LIGHT_GREEN + f"File '{filepath}' sent successfully." + RESET)
             return True
         except socket.timeout:
-            print(f"Attempt {attempt + 1}: Timeout occurred while sending data")
+            print(LIGHT_YELLOW + f"Attempt {attempt + 1}: Timeout occurred while sending data" + RESET)
             attempt+=1
         except FileNotFoundError:
-            print(f"File '{filepath}' not found.")
+            print(LIGHT_RED + f"File '{filepath}' not found." + RESET)
             return False
         except Exception as e:
-            print(f"Error while sending file: {e}")
+            print(LIGHT_RED + f"Error while sending file: {e}" + RESET)
             return False
     return False
 
@@ -361,17 +369,17 @@ def send_directory(dir_path,client_socket):
                     send_directory(full_path,client_socket)
                     continue
                 if not send_file(full_path,client_socket):
-                    print(f"{file} could not be uploaded")
+                    print(LIGHT_RED + f"[-] {file} could not be uploaded" + RESET)
                 else:
-                    print(f"{file} successfully uploaded")
+                    print(LIGHT_GREEN + f"[+] {file} successfully uploaded" + RESET)
             # Send END after sending directory contents
             client_socket.sendall(END.encode())
             resp=client_socket.recv(1024).decode()
         except socket.timeout:
-            print("Timeout")
+            print(LIGHT_RED + "Timeout" + RESET)
             attempt+=1
         except Exception as e:
-            print(f"Error : {e}")
+            print(LIGHT_RED + f"Error : {e}" + RESET)
     if attempt==3:
         return False
     return True
@@ -391,7 +399,7 @@ def handle_upload(tokens, client_socket):
     if check_command_validity(tokens, 2):
         path = tokens[1]
         if not os.path.exists(path):
-            print(f"Path {path} does not exist.")
+            print(LIGHT_RED + f"Path {path} does not exist." + RESET)
             return False
         attempt=0
         while attempt<3:
@@ -402,7 +410,7 @@ def handle_upload(tokens, client_socket):
                     client_socket.sendall(f"upload {path}".encode())
                     resp=client_socket.recv(8192).decode("utf-8").strip()
                     if resp == "NACK":
-                        print("Error while sending command")
+                        print(LIGHT_RED + "Error while sending command" + RESET)
                         print("Retrying")
                 # Then send the actual file or directory
                 if os.path.isdir(path):
@@ -410,10 +418,10 @@ def handle_upload(tokens, client_socket):
                 else:
                     return send_file(path, client_socket)
             except socket.timeout:
-                print(f"Attempt {attempt + 1}: Timeout occurred while sending data")
+                print(LIGHT_RED + f"Attempt {attempt + 1}: Timeout occurred while sending data" + RESET)
                 attempt+=1
             except Exception as e:
-                print(f"Error during upload: {e}")
+                print(LIGHT_RED + f"Error during upload: {e}" + RESET)
         return False
 
 def handle_download(args, sock):
@@ -456,7 +464,7 @@ def check_command_validity(tokens:str, expected_length:int) -> bool:
     """
     if len(tokens) != expected_length:
         command=tokens[0].lower()
-        print(f"Wrong number of argument.\n{command} : {commands.get(command).split(':')[1]}")
+        print(LIGHT_RED + f"Wrong number of argument.\n{command} : {commands.get(command).split(':')[1]}" + RESET)
         return False
     return True
 
@@ -475,14 +483,14 @@ def handle_lcd(tokens, _):
         return
     path=tokens[1]
     if not os.path.isdir(path):
-        print(f"Path {path} does not exists.")
+        print(LIGHT_RED + f"Path {path} does not exists." + RESET)
         return
     try:
         os.chdir(path)
     except PermissionError:
-        print(f"You do not have permission to access {path}")
+        print(LIGHT_RED + f"You do not have permission to access {path}" + RESET)
     except Exception as e:
-        print(f"Error accessing the directory : {e}")
+        print(LIGHT_RED + f"Error accessing the directory : {e}" + RESET)
 
 def handle_llist(tokens, _):
     """
@@ -498,6 +506,7 @@ def handle_llist(tokens, _):
     if not check_command_validity(tokens,1):
         return
     listing=os.listdir()
+    print(LIGHT_YELLOW + f"===== Files in {os.path()} =====" + RESET)
     for file in listing:
         print(file)
 
@@ -516,12 +525,12 @@ def handle_lmkdir(tokens, _):
         return
     path=tokens[1].lower()
     if os.path.exists(path):
-        print(f"{path} already exists")
+        print(LIGHT_RED + f"{path} already exists" + RESET)
         return
     try:
         os.mkdir(path)
     except FileNotFoundError:
-        print(f"{path} is incorrect")
+        print(LIGHT_RED + f"{path} is incorrect" + RESET)
 
 def handle_lpwd(tokens, _):
     """
@@ -536,7 +545,7 @@ def handle_lpwd(tokens, _):
     """
     if not check_command_validity(tokens,1):
         return
-    print(os.getcwd())
+    print(LIGHT_YELLOW + f"{os.getcwd()}" + RESET)
     
 # Dictionary mapping commands to their respective handler functions
 command_map = {
